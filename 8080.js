@@ -26,6 +26,26 @@ function Processor8080(memory) {
 	var rp = new Uint16Array(registerBuffer);
 	var r = new Uint8Array(registerBuffer);
 
+	/* positions of flag bits within F */
+	var Fz = 0x40; var Fs = 0x80; var Fp = 0x04; var Fcy = 0x01; var Fac = 0x10;
+
+	/* Lookup table for setting the S, Z and P flags according to the results of an operation */
+	var szpTable = new Uint8Array(0x100);
+
+	for (var i = 0; i < 0x100; i++) {
+		var j = i;
+		var parity = 0;
+		for (var k = 0; k < 8; k++) {
+			parity ^= j & 1;
+			j >>=1;
+		}
+
+		parityBit = (parity ? 0 : Fp);
+		signBit = (i & 0x80 ? Fs : 0);
+		zeroBit = (i === 0 ? Fz: 0);
+		szpTable[i] = signBit | parityBit | zeroBit;
+	}
+
 	var cycle = 0;
 
 	self.runForCycles = function(cycleCount) {
@@ -50,6 +70,13 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x05: /* DCR B */
+					r[B]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[B]] | (r[B] & 0x0f == 0x0f ? Fac : 0);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x06: /* MVI B,nn */
 					r[B] = memory.read(++rp[PC]);
 					rp[PC]++;
@@ -62,6 +89,13 @@ function Processor8080(memory) {
 					break;
 				case 0x0b: /* DCX BC */
 					rp[BC]--;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x0d: /* DCR C */
+					r[C]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[C]] | (r[C] & 0x0f == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -81,6 +115,13 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x05: /* DCR D */
+					r[D]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[D]] | (r[D] & 0x0f == 0x0f ? Fac : 0);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x16: /* MVI D,nn */
 					r[D] = memory.read(++rp[PC]);
 					rp[PC]++;
@@ -93,6 +134,13 @@ function Processor8080(memory) {
 					break;
 				case 0x1b: /* DCX DE */
 					rp[DE]--;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x1d: /* DCR E */
+					r[E]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[E]] | (r[E] & 0x0f == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -112,6 +160,13 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x25: /* DCR H */
+					r[H]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[H]] | (r[H] & 0x0f == 0x0f ? Fac : 0);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x26: /* MVI H,nn */
 					r[H] = memory.read(++rp[PC]);
 					rp[PC]++;
@@ -119,6 +174,13 @@ function Processor8080(memory) {
 					break;
 				case 0x2b: /* DCX HL */
 					rp[HL]--;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x2d: /* DCR L */
+					r[L]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[L]] | (r[L] & 0x0f == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -140,6 +202,13 @@ function Processor8080(memory) {
 					break;
 				case 0x3b: /* DCX SP */
 					rp[SP]--;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x3d: /* DCR L */
+					r[L]--;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[r[L]] | (r[L] & 0x0f == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
