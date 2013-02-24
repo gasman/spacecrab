@@ -81,6 +81,13 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x09: /* DAD BC */
+					result = rp[HL] + rp[BC];
+					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+					rp[HL] = result;
+					rp[PC]++;
+					cycle += 10;
+					break;
 				case 0x0a: /* LDAX BC */
 					r[A] = memory.read(rp[BC]);
 					rp[PC]++;
@@ -114,7 +121,7 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
-				case 0x05: /* DCR D */
+				case 0x15: /* DCR D */
 					r[D]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 					r[F] = (r[F] & Fcy) | szpTable[r[D]] | (r[D] & 0x0f == 0x0f ? Fac : 0);
@@ -125,6 +132,13 @@ function Processor8080(memory) {
 					r[D] = memory.read(++rp[PC]);
 					rp[PC]++;
 					cycle += 7;
+					break;
+				case 0x19: /* DAD DE */
+					result = rp[HL] + rp[DE];
+					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+					rp[HL] = result;
+					rp[PC]++;
+					cycle += 10;
 					break;
 				case 0x1a: /* LDAX DE */
 					r[A] = memory.read(rp[DE]);
@@ -171,6 +185,13 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x29: /* DAD HL */
+					result = rp[HL] + rp[HL];
+					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+					rp[HL] = result;
+					rp[PC]++;
+					cycle += 10;
+					break;
 				case 0x2b: /* DCX HL */
 					rp[HL]--;
 					rp[PC]++;
@@ -201,6 +222,13 @@ function Processor8080(memory) {
 					break;
 				case 0x36: /* MVI M,nn */
 					memory.write(rp[HL], memory.read[++rp[PC]]);
+					rp[PC]++;
+					cycle += 10;
+					break;
+				case 0x39: /* DAD SP */
+					result = rp[HL] + rp[SP];
+					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+					rp[HL] = result;
 					rp[PC]++;
 					cycle += 10;
 					break;
@@ -496,6 +524,12 @@ function Processor8080(memory) {
 					r[PCh] = memory.read(rp[SP]++);
 					cycle += 10;
 					break;
+				case 0xc5: /* PUSH BC */
+					memory.write(--rp[SP], r[B]);
+					memory.write(--rp[SP], r[C]);
+					rp[PC]++;
+					cycle += 11;
+					break;
 				case 0xca: /* JZ nnnn */
 					if (r[F] & Fz) {
 						/* Z is set, so jump */
@@ -527,6 +561,12 @@ function Processor8080(memory) {
 					}
 					cycle += 10;
 					break;
+				case 0xd5: /* PUSH DE */
+					memory.write(--rp[SP], r[D]);
+					memory.write(--rp[SP], r[E]);
+					rp[PC]++;
+					cycle += 11;
+					break;
 				case 0xda: /* JC nnnn */
 					if (r[F] & Fcy) {
 						/* Cy is set, so jump */
@@ -549,6 +589,12 @@ function Processor8080(memory) {
 					}
 					cycle += 10;
 					break;
+				case 0xe5: /* PUSH HL */
+					memory.write(--rp[SP], r[H]);
+					memory.write(--rp[SP], r[L]);
+					rp[PC]++;
+					cycle += 11;
+					break;
 				case 0xea: /* JPE nnnn */
 					if (r[F] & Fp) {
 						/* P is set, so jump */
@@ -570,6 +616,12 @@ function Processor8080(memory) {
 						r[PCh] = hi; r[PCl] = lo;
 					}
 					cycle += 10;
+					break;
+				case 0xf5: /* PUSH PSW */
+					memory.write(--rp[SP], r[A]);
+					memory.write(--rp[SP], r[F]);
+					rp[PC]++;
+					cycle += 11;
 					break;
 				case 0xfa: /* JC nnnn */
 					if (r[F] & Fs) {
