@@ -252,10 +252,32 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xc2: /* JNZ nnnn */
+					if (r[F] & Fz) {
+						/* Z is set, so stay */
+						rp[PC] += 3;
+					} else {
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					}
+					cycle += 10;
+					break;
 				case 0xc3: /* JMP nnnn */
 					lo = memory.read(++rp[PC]);
 					hi = memory.read(++rp[PC]);
 					r[PCh] = hi; r[PCl] = lo;
+					cycle += 10;
+					break;
+				case 0xca: /* JZ nnnn */
+					if (r[F] & Fz) {
+						/* Z is set, so jump */
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					} else {
+						rp[PC] += 3;
+					}
 					cycle += 10;
 					break;
 				case 0xcd: /* CALL nnnn */
@@ -266,6 +288,72 @@ function Processor8080(memory) {
 					memory.write(--rp[SP], r[PCl]);
 					r[PCh] = hi; r[PCl] = lo;
 					cycle += 17;
+					break;
+				case 0xd2: /* JNC nnnn */
+					if (r[F] & Fcy) {
+						/* Cy is set, so stay */
+						rp[PC] += 3;
+					} else {
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					}
+					cycle += 10;
+					break;
+				case 0xda: /* JC nnnn */
+					if (r[F] & FCy) {
+						/* Cy is set, so jump */
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					} else {
+						rp[PC] += 3;
+					}
+					cycle += 10;
+					break;
+				case 0xe2: /* JPO nnnn */
+					if (r[F] & Fp) {
+						/* P is set, so stay */
+						rp[PC] += 3;
+					} else {
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					}
+					cycle += 10;
+					break;
+				case 0xea: /* JPE nnnn */
+					if (r[F] & Fp) {
+						/* P is set, so jump */
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					} else {
+						rp[PC] += 3;
+					}
+					cycle += 10;
+					break;
+				case 0xf2: /* JP nnnn */
+					if (r[F] & Fs) {
+						/* S is set, so stay */
+						rp[PC] += 3;
+					} else {
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					}
+					cycle += 10;
+					break;
+				case 0xfa: /* JC nnnn */
+					if (r[F] & Fs) {
+						/* S is set, so jump */
+						lo = memory.read(++rp[PC]);
+						hi = memory.read(++rp[PC]);
+						r[PCh] = hi; r[PCl] = lo;
+					} else {
+						rp[PC] += 3;
+					}
+					cycle += 10;
 					break;
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
