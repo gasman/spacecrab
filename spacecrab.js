@@ -59,10 +59,10 @@ function init() {
 		});
 	}
 
-	loadRom('roms/invaders.e', 0x0000);
-	loadRom('roms/invaders.f', 0x0800);
-	loadRom('roms/invaders.g', 0x1000);
-	loadRom('roms/invaders.h', 0x1800);
+	loadRom('roms/invaders.h', 0x0000);
+	loadRom('roms/invaders.g', 0x0800);
+	loadRom('roms/invaders.f', 0x1000);
+	loadRom('roms/invaders.e', 0x1800);
 
 	function allRomsLoaded() {
 		memory.dump();
