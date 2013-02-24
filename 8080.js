@@ -53,7 +53,6 @@ function Processor8080(memory) {
 
 		while(cycle < cycleCount) {
 			var opcode = memory.read(rp[PC]);
-			console.log(rp[PC], cycle);
 			switch(opcode) {
 				case 0x00: /* NOP */
 					rp[PC]++;
@@ -200,6 +199,11 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x36: /* MVI M,nn */
+					memory.write(rp[HL], memory.read[++rp[PC]]);
+					rp[PC]++;
+					cycle += 10;
+					break;
 				case 0x3b: /* DCX SP */
 					rp[SP]--;
 					rp[PC]++;
@@ -217,6 +221,151 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+
+				case 0x40: /* MOV B,B */
+					rp[PC]++; cycle += 5; break;
+				case 0x41: /* MOV B,C */
+					r[B] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x42: /* MOV B,D */
+					r[B] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x43: /* MOV B,E */
+					r[B] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x44: /* MOV B,H */
+					r[B] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x45: /* MOV B,L */
+					r[B] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x46: /* MOV B,M */
+					r[B] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x47: /* MOV B,A */
+					r[B] = r[A];
+					rp[PC]++; cycle += 5; break;
+
+				case 0x48: /* MOV C,B */
+					r[C] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x49: /* MOV C,C */
+					rp[PC]++; cycle += 5; break;
+				case 0x4a: /* MOV C,D */
+					r[C] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x4b: /* MOV C,E */
+					r[C] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x4c: /* MOV C,H */
+					r[C] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x4d: /* MOV C,L */
+					r[C] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x4e: /* MOV C,M */
+					r[C] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x4f: /* MOV C,A */
+					r[C] = r[A];
+					rp[PC]++; cycle += 5; break;
+
+				case 0x50: /* MOV D,B */
+					r[D] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x51: /* MOV D,C */
+					r[D] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x52: /* MOV D,D */
+					rp[PC]++; cycle += 5; break;
+				case 0x53: /* MOV D,E */
+					r[D] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x54: /* MOV D,H */
+					r[D] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x55: /* MOV D,L */
+					r[D] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x56: /* MOV D,M */
+					r[D] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x57: /* MOV D,A */
+					r[D] = r[A];
+					rp[PC]++; cycle += 5; break;
+
+				case 0x58: /* MOV E,B */
+					r[E] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x59: /* MOV E,C */
+					r[E] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x5a: /* MOV E,D */
+					r[E] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x5b: /* MOV E,E */
+					rp[PC]++; cycle += 5; break;
+				case 0x5c: /* MOV E,H */
+					r[E] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x5d: /* MOV E,L */
+					r[E] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x5e: /* MOV E,M */
+					r[E] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x5f: /* MOV E,A */
+					r[E] = r[A];
+					rp[PC]++; cycle += 5; break;
+
+				case 0x60: /* MOV H,B */
+					r[H] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x61: /* MOV H,C */
+					r[H] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x62: /* MOV H,D */
+					r[H] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x63: /* MOV H,E */
+					r[H] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x64: /* MOV H,H */
+					rp[PC]++; cycle += 5; break;
+				case 0x65: /* MOV H,L */
+					r[H] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x66: /* MOV H,M */
+					r[H] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x67: /* MOV H,A */
+					r[H] = r[A];
+					rp[PC]++; cycle += 5; break;
+
+				case 0x68: /* MOV L,B */
+					r[L] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x69: /* MOV L,C */
+					r[L] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x6a: /* MOV L,D */
+					r[L] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x6b: /* MOV L,E */
+					r[L] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x6c: /* MOV L,H */
+					r[L] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x6d: /* MOV L,L */
+					rp[PC]++; cycle += 5; break;
+				case 0x6e: /* MOV L,M */
+					r[L] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x6f: /* MOV L,A */
+					r[L] = r[A];
+					rp[PC]++; cycle += 5; break;
+
 				case 0x70: /* MOV M,B */
 					memory.write(rp[HL], r[B]);
 					rp[PC]++;
@@ -252,6 +401,31 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+
+				case 0x78: /* MOV A,B */
+					r[A] = r[B];
+					rp[PC]++; cycle += 5; break;
+				case 0x79: /* MOV A,C */
+					r[A] = r[C];
+					rp[PC]++; cycle += 5; break;
+				case 0x7a: /* MOV A,D */
+					r[A] = r[D];
+					rp[PC]++; cycle += 5; break;
+				case 0x7b: /* MOV A,E */
+					r[A] = r[E];
+					rp[PC]++; cycle += 5; break;
+				case 0x7c: /* MOV A,H */
+					r[A] = r[H];
+					rp[PC]++; cycle += 5; break;
+				case 0x7d: /* MOV A,L */
+					r[A] = r[L];
+					rp[PC]++; cycle += 5; break;
+				case 0x7e: /* MOV A,M */
+					r[A] = memory.read(rp[HL]);
+					rp[PC]++; cycle += 7; break;
+				case 0x7f: /* MOV A,A */
+					rp[PC]++; cycle += 5; break;
+
 				case 0xc2: /* JNZ nnnn */
 					if (r[F] & Fz) {
 						/* Z is set, so stay */
@@ -267,6 +441,11 @@ function Processor8080(memory) {
 					lo = memory.read(++rp[PC]);
 					hi = memory.read(++rp[PC]);
 					r[PCh] = hi; r[PCl] = lo;
+					cycle += 10;
+					break;
+				case 0xc9: /* RET */
+					r[PCl] = memory.read(rp[SP]++);
+					r[PCh] = memory.read(rp[SP]++);
 					cycle += 10;
 					break;
 				case 0xca: /* JZ nnnn */
