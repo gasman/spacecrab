@@ -65,7 +65,6 @@ function init() {
 	loadRom('roms/invaders.e', 0x1800);
 
 	function allRomsLoaded() {
-		memory.dump();
 		proc = Processor8080(memory);
 		proc.runForCycles(10000);
 	}
