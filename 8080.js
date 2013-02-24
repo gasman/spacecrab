@@ -49,7 +49,7 @@ function Processor8080(memory) {
 	var cycle = 0;
 
 	self.runForCycles = function(cycleCount) {
-		var lo, hi;
+		var lo, hi, result;
 
 		while(cycle < cycleCount) {
 			var opcode = memory.read(rp[PC]);
@@ -426,6 +426,54 @@ function Processor8080(memory) {
 				case 0x7f: /* MOV A,A */
 					rp[PC]++; cycle += 5; break;
 
+				case 0xb8: /* CMP B */
+					result = (r[A] - r[B]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xb9: /* CMP C */
+					result = (r[A] - r[C]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xba: /* CMP D */
+					result = (r[A] - r[D]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xbb: /* CMP E */
+					result = (r[A] - r[E]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xbc: /* CMP H */
+					result = (r[A] - r[H]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xbd: /* CMP L */
+					result = (r[A] - r[L]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 4;
+					break;
+				case 0xbe: /* CMP M */
+					result = (r[A] - memory.read(rp[HL])) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 7;
+					break;
+				case 0xbf: /* CMP A */
+					r[F] = szpTable[0];
+					rp[PC]++;
+					cycle += 4;
+					break;
+
 				case 0xc2: /* JNZ nnnn */
 					if (r[F] & Fz) {
 						/* Z is set, so stay */
@@ -480,7 +528,7 @@ function Processor8080(memory) {
 					cycle += 10;
 					break;
 				case 0xda: /* JC nnnn */
-					if (r[F] & FCy) {
+					if (r[F] & Fcy) {
 						/* Cy is set, so jump */
 						lo = memory.read(++rp[PC]);
 						hi = memory.read(++rp[PC]);
@@ -533,6 +581,12 @@ function Processor8080(memory) {
 						rp[PC] += 3;
 					}
 					cycle += 10;
+					break;
+				case 0xfe: /* CPI nn */
+					result = (r[A] - memory.read(++rp[PC])) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					rp[PC]++;
+					cycle += 7;
 					break;
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
