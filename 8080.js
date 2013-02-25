@@ -245,6 +245,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 10;
 					break;
+				case 0x32: /* STA nnnn */
+					lo = memory.read[++rp[PC]];
+					hi = memory.read[++rp[PC]];
+					memory.write((hi << 8) | lo, r[A]);
+					rp[PC]++;
+					cycle += 13;
+					break;
 				case 0x33: /* INX SP */
 					rp[SP]++;
 					rp[PC]++;
@@ -261,6 +268,13 @@ function Processor8080(memory, io) {
 					rp[HL] = result;
 					rp[PC]++;
 					cycle += 10;
+					break;
+				case 0x3a: /* LDA nnnn */
+					lo = memory.read[++rp[PC]];
+					hi = memory.read[++rp[PC]];
+					r[A] = memory.read((hi << 8) | lo);
+					rp[PC]++;
+					cycle += 13;
 					break;
 				case 0x3b: /* DCX SP */
 					rp[SP]--;
