@@ -81,6 +81,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x07: /* RLC */
+					/* copy top bit of A to carry flag */
+					r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+					r[A] = (r[A] << 1) | ((r[A] & 0x80) >> 7);
+					rp[PC]++;
+					cycle += 4;
+					break;
 				case 0x09: /* DAD BC */
 					result = rp[HL] + rp[BC];
 					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
@@ -110,6 +117,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x0f: /* RRC */
+					/* copy bottom bit of A to carry flag */
+					r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+					r[A] = (r[A] >> 1) | ((r[A] & 0x01) << 7);
+					rp[PC]++;
+					cycle += 4;
+					break;
 				case 0x11: /* LXI DE,nnnn */
 					r[E] = memory.read(++rp[PC]);
 					r[D] = memory.read(++rp[PC]);
@@ -132,6 +146,14 @@ function Processor8080(memory, io) {
 					r[D] = memory.read(++rp[PC]);
 					rp[PC]++;
 					cycle += 7;
+					break;
+				case 0x17: /* RAL */
+					result = (r[A] << 1) | (r[F] & Fcy ? 1 : 0);
+					/* copy top bit of A to carry flag */
+					r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+					r[A] = result;
+					rp[PC]++;
+					cycle += 4;
 					break;
 				case 0x19: /* DAD DE */
 					result = rp[HL] + rp[DE];
@@ -161,6 +183,14 @@ function Processor8080(memory, io) {
 					r[E] = memory.read(++rp[PC]);
 					rp[PC]++;
 					cycle += 7;
+					break;
+				case 0x1f: /* RAR */
+					result = (r[A] >> 1) | (r[F] & Fcy ? 0x80 : 0);
+					/* copy bottom bit of A to carry flag */
+					r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+					r[A] = result;
+					rp[PC]++;
+					cycle += 4;
 					break;
 				case 0x21: /* LXI HL,nnnn */
 					r[L] = memory.read(++rp[PC]);
@@ -678,9 +708,12 @@ function Processor8080(memory, io) {
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
 			}
-			/* console.log(rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle); */
 		}
 		cycle -= cycleCount;
+	};
+
+	self.logState = function() {
+		console.log(rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle);
 	};
 
 	return self;

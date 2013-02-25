@@ -77,6 +77,9 @@ function init() {
 
 	function allRomsLoaded() {
 		proc = Processor8080(memory, io);
-		proc.runForCycles(1000000);
+		for (var i = 0; i < 1000; i++) {
+			proc.runForCycles(16667);
+			proc.logState();
+		}
 	}
 }
