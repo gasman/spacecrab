@@ -308,6 +308,11 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x2f: /* CMA */
+					r[A] = ~r[A];
+					rp[PC]++;
+					cycle += 4;
+					break;
 				case 0x31: /* LXI SP,nnnn */
 					r[SPl] = memory.read(++rp[PC]);
 					r[SPh] = memory.read(++rp[PC]);
@@ -389,6 +394,11 @@ function Processor8080(memory, io) {
 					r[A] = memory.read(++rp[PC]);
 					rp[PC]++;
 					cycle += 7;
+					break;
+				case 0x3f: /* CMC */
+					r[F] ^= (r[F] & Fcy);
+					rp[PC]++;
+					cycle += 4;
 					break;
 
 				case 0x40: /* MOV B,B */
