@@ -235,6 +235,15 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 10;
 					break;
+				case 0x22: /* SHLD nnnn */
+					lo = memory.read(++rp[PC]);
+					hi = memory.read(++rp[PC]);
+					result = (hi << 8) | lo;
+					memory.write(result, r[L]);
+					memory.write((result + 1) & 0xffff, r[H]);
+					rp[PC]++;
+					cycle += 16;
+					break;
 				case 0x23: /* INX HL */
 					rp[HL]++;
 					rp[PC]++;
