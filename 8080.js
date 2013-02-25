@@ -47,12 +47,21 @@ function Processor8080(memory, io) {
 	}
 
 	var cycle = 0;
+	var interruptsEnabled = false;
+	var interruptPending = false;
+	var interruptOpcode;
 
 	self.runForCycles = function(cycleCount) {
-		var lo, hi, result;
+		var lo, hi, result, opcode;
 
 		while(cycle < cycleCount) {
-			var opcode = memory.read(rp[PC]);
+			if (interruptPending) {
+				opcode = interruptOpcode;
+				interruptPending = false;
+				rp[PC]--; /* compensate for PC being incremented in the execution of a regular instruction, which shouldn't happen here */
+			} else {
+				opcode = memory.read(rp[PC]);
+			}
 			switch(opcode) {
 				case 0x00: /* NOP */
 					rp[PC]++;
@@ -259,6 +268,14 @@ function Processor8080(memory, io) {
 					break;
 				case 0x36: /* MVI M,nn */
 					memory.write(rp[HL], memory.read[++rp[PC]]);
+					rp[PC]++;
+					cycle += 10;
+					break;
+				case 0x35: /* DCR M */
+					result = (memory.read(rp[HL]) - 1) & 0xff;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+					r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
+					memory.write(rp[HL], result);
 					rp[PC]++;
 					cycle += 10;
 					break;
@@ -691,6 +708,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xc7: /* RST 00 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0000;
+					cycle += 11;
+					break;
 				case 0xc9: /* RET */
 					r[PCl] = memory.read(rp[SP]++);
 					r[PCh] = memory.read(rp[SP]++);
@@ -722,6 +746,13 @@ function Processor8080(memory, io) {
 					r[PCh] = hi; r[PCl] = lo;
 					cycle += 17;
 					break;
+				case 0xcf: /* RST 08 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0008;
+					cycle += 11;
+					break;
 				case 0xd1: /* POP DE */
 					r[E] = memory.read(rp[SP]++);
 					r[D] = memory.read(rp[SP]++);
@@ -750,6 +781,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 11;
 					break;
+				case 0xd7: /* RST 10 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0010;
+					cycle += 11;
+					break;
 				case 0xda: /* JC nnnn */
 					if (r[F] & Fcy) {
 						/* Cy is set, so jump */
@@ -760,6 +798,13 @@ function Processor8080(memory, io) {
 						rp[PC] += 3;
 					}
 					cycle += 10;
+					break;
+				case 0xdf: /* RST 18 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0018;
+					cycle += 11;
 					break;
 				case 0xe1: /* POP HL */
 					r[L] = memory.read(rp[SP]++);
@@ -790,6 +835,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xe7: /* RST 20 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0020;
+					cycle += 11;
+					break;
 				case 0xea: /* JPE nnnn */
 					if (r[F] & Fp) {
 						/* P is set, so jump */
@@ -814,6 +866,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xef: /* RST 28 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0028;
+					cycle += 11;
+					break;
 				case 0xf1: /* POP PSW */
 					r[F] = memory.read(rp[SP]++);
 					r[A] = memory.read(rp[SP]++);
@@ -831,6 +890,11 @@ function Processor8080(memory, io) {
 					}
 					cycle += 10;
 					break;
+				case 0xf3: /* DI */
+					interruptsEnabled = false;
+					rp[PC] += 1;
+					cycle += 4;
+					break;
 				case 0xf5: /* PUSH PSW */
 					memory.write(--rp[SP], r[A]);
 					memory.write(--rp[SP], r[F]);
@@ -843,6 +907,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xf7: /* RST 30 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0030;
+					cycle += 11;
+					break;
 				case 0xfa: /* JC nnnn */
 					if (r[F] & Fs) {
 						/* S is set, so jump */
@@ -854,17 +925,36 @@ function Processor8080(memory, io) {
 					}
 					cycle += 10;
 					break;
+				case 0xfb: /* EI */
+					interruptsEnabled = true;
+					rp[PC] += 1;
+					cycle += 4;
+					break;
 				case 0xfe: /* CPI nn */
 					result = (r[A] - memory.read(++rp[PC])) & 0xff;
 					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0xff: /* RST 38 */
+					rp[PC]++;
+					memory.write(--rp[SP], r[PCh]);
+					memory.write(--rp[SP], r[PCl]);
+					rp[PC] = 0x0038;
+					cycle += 11;
+					break;
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
 			}
 		}
 		cycle -= cycleCount;
+	};
+
+	self.interrupt = function(opcode) {
+		if (interruptsEnabled) {
+			interruptPending = true;
+			interruptOpcode = opcode;
+		}
 	};
 
 	self.logState = function() {

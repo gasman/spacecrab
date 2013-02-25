@@ -78,8 +78,14 @@ function init() {
 	function allRomsLoaded() {
 		proc = Processor8080(memory, io);
 		for (var i = 0; i < 1000; i++) {
+			/* run for a frame at a time, alternating between RST 08 and RST 10 as interrupt routine */
 			proc.runForCycles(16667);
 			proc.logState();
+			proc.interrupt(0xcf); /* opcode for RST 08 */
+
+			proc.runForCycles(16667);
+			proc.logState();
+			proc.interrupt(0xd7); /* opcode for RST 10 */
 		}
 	}
 }
