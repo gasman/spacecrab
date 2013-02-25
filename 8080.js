@@ -561,6 +561,46 @@ function Processor8080(memory, io) {
 					r[A] = result;
 					rp[PC]++; cycle += 4; break;
 
+				case 0x90: /* SUB B */
+					result = (r[A] - r[B]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x91: /* SUB C */
+					result = (r[A] - r[C]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x92: /* SUB D */
+					result = (r[A] - r[D]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x93: /* SUB E */
+					result = (r[A] - r[E]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x94: /* SUB H */
+					result = (r[A] - r[H]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x95: /* SUB L */
+					result = (r[A] - r[L]) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x96: /* SUB M */
+					result = (r[A] - memory.read(rp[HL])) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 7; break;
+				case 0x97: /* SUB A */
+					r[F] = szpTable[0];
+					r[A] = 0;
+					rp[PC]++; cycle += 4; break;
+
 				case 0xa0: /* ANA B */
 					r[A] &= r[B]; r[F] = szpTable[r[A]];
 					rp[PC]++; cycle += 4; break;
@@ -818,6 +858,13 @@ function Processor8080(memory, io) {
 					memory.write(--rp[SP], r[E]);
 					rp[PC]++;
 					cycle += 11;
+					break;
+				case 0xd6: /* SUI nn */
+					result = (r[A] - memory.read(++rp[PC])) & 0xff;
+					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++;
+					cycle += 7;
 					break;
 				case 0xd7: /* RST 10 */
 					rp[PC]++;
