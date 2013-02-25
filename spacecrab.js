@@ -52,6 +52,7 @@ function IO() {
 
 	self.read = function(port) {
 		// console.log('read from port ' + port);
+		return 0;
 	};
 
 	self.write = function(port, val) {
@@ -89,14 +90,13 @@ function init() {
 		runFrame();
 	}
 
-	var isOddFrame = true;
 	function runFrame() {
-		/* run for a frame at a time, alternating between RST 08 and RST 10 as interrupt routine */
 		proc.runForCycles(16667);
+		proc.interrupt(0xcf); /* opcode for RST 08 */
+		proc.runForCycles(16667);
+		proc.interrupt(0xd7); /* opcode for RST 10 */
 		drawScreen();
-		proc.interrupt(isOddFrame ? 0xcf : 0xd7); /* opcode for RST 08 / RST 10 */
-		isOddFrame = !isOddFrame;
-		setTimeout(runFrame, 20);
+		setTimeout(runFrame, 17); /* 60 Hz, ish */
 	}
 
 	function drawScreen() {
