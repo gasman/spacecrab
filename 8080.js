@@ -484,6 +484,81 @@ function Processor8080(memory, io) {
 				case 0x7f: /* MOV A,A */
 					rp[PC]++; cycle += 5; break;
 
+				case 0xa0: /* ANA B */
+					r[A] &= r[B]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa1: /* ANA C */
+					r[A] &= r[C]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa2: /* ANA D */
+					r[A] &= r[D]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa3: /* ANA E */
+					r[A] &= r[E]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa4: /* ANA H */
+					r[A] &= r[H]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa5: /* ANA L */
+					r[A] &= r[L]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa6: /* ANA M */
+					r[A] &= memory.read(rp[HL]); r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 7; break;
+				case 0xa7: /* ANA A */
+					r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+
+				case 0xa8: /* XRA B */
+					r[A] ^= r[B]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xa9: /* XRA C */
+					r[A] ^= r[C]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xaa: /* XRA D */
+					r[A] ^= r[D]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xab: /* XRA E */
+					r[A] ^= r[E]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xac: /* XRA H */
+					r[A] ^= r[H]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xad: /* XRA L */
+					r[A] ^= r[L]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xae: /* XRA M */
+					r[A] ^= memory.read(rp[HL]); r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 7; break;
+				case 0xaf: /* XRA A */
+					r[A] = 0; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+
+				case 0xb0: /* ORA B */
+					r[A] |= r[B]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb1: /* ORA C */
+					r[A] |= r[C]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb2: /* ORA D */
+					r[A] |= r[D]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb3: /* ORA E */
+					r[A] |= r[E]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb4: /* ORA H */
+					r[A] |= r[H]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb5: /* ORA L */
+					r[A] |= r[L]; r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+				case 0xb6: /* ORA M */
+					r[A] |= memory.read(rp[HL]); r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 7; break;
+				case 0xb7: /* ORA A */
+					r[F] = szpTable[r[A]];
+					rp[PC]++; cycle += 4; break;
+
 				case 0xb8: /* CMP B */
 					result = (r[A] - r[B]) & 0xff;
 					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
@@ -647,6 +722,12 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 11;
 					break;
+				case 0xe6: /* ANI nn */
+					r[A] &= memory.read(++rp[PC]);
+					r[F] = szpTable[r[A]];
+					rp[PC]++;
+					cycle += 7;
+					break;
 				case 0xea: /* JPE nnnn */
 					if (r[F] & Fp) {
 						/* P is set, so jump */
@@ -664,6 +745,12 @@ function Processor8080(memory, io) {
 					rp[DE] = result;
 					rp[PC]++;
 					cycle += 5;
+					break;
+				case 0xee: /* XRI nn */
+					r[A] ^= memory.read(++rp[PC]);
+					r[F] = szpTable[r[A]];
+					rp[PC]++;
+					cycle += 7;
 					break;
 				case 0xf1: /* POP PSW */
 					r[F] = memory.read(rp[SP]++);
@@ -687,6 +774,12 @@ function Processor8080(memory, io) {
 					memory.write(--rp[SP], r[F]);
 					rp[PC]++;
 					cycle += 11;
+					break;
+				case 0xf6: /* ORI nn */
+					r[A] |= memory.read(++rp[PC]);
+					r[F] = szpTable[r[A]];
+					rp[PC]++;
+					cycle += 7;
 					break;
 				case 0xfa: /* JC nnnn */
 					if (r[F] & Fs) {
