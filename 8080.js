@@ -484,6 +484,47 @@ function Processor8080(memory, io) {
 				case 0x7f: /* MOV A,A */
 					rp[PC]++; cycle += 5; break;
 
+				case 0x80: /* ADD B */
+					result = (r[A] + r[B]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x81: /* ADD C */
+					result = (r[A] + r[C]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x82: /* ADD D */
+					result = (r[A] + r[D]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x83: /* ADD E */
+					result = (r[A] + r[E]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x84: /* ADD H */
+					result = (r[A] + r[H]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x85: /* ADD L */
+					result = (r[A] + r[L]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x86: /* ADD M */
+					result = (r[A] + memory.read(rp[HL])) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 7; break;
+				case 0x87: /* ADD A */
+					result = (r[A] + r[A]) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+
 				case 0xa0: /* ANA B */
 					r[A] &= r[B]; r[F] = szpTable[r[A]];
 					rp[PC]++; cycle += 4; break;
@@ -628,6 +669,13 @@ function Processor8080(memory, io) {
 					hi = memory.read(++rp[PC]);
 					r[PCh] = hi; r[PCl] = lo;
 					cycle += 10;
+					break;
+				case 0xc6: /* ADI nn */
+					result = (r[A] + memory.read(++rp[PC])) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++;
+					cycle += 7;
 					break;
 				case 0xc9: /* RET */
 					r[PCl] = memory.read(rp[SP]++);
