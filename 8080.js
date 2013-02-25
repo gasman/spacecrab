@@ -78,6 +78,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x04: /* INR B */
+					r[B]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[B]] | ((r[B] & 0x0f) ? 0 : Fac);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x05: /* DCR B */
 					r[B]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
@@ -114,6 +121,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x0c: /* INR C */
+					r[C]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[C]] | ((r[C] & 0x0f) ? 0 : Fac);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x0d: /* DCR C */
 					r[C]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
@@ -141,6 +155,13 @@ function Processor8080(memory, io) {
 					break;
 				case 0x13: /* INX DE */
 					rp[DE]++;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x14: /* INR D */
+					r[D]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[D]] | ((r[D] & 0x0f) ? 0 : Fac);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -181,6 +202,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x1c: /* INR E */
+					r[E]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[E]] | ((r[E] & 0x0f) ? 0 : Fac);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x1d: /* DCR E */
 					r[E]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
@@ -209,6 +237,13 @@ function Processor8080(memory, io) {
 					break;
 				case 0x23: /* INX HL */
 					rp[HL]++;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x24: /* INR H */
+					r[H]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[H]] | ((r[H] & 0x0f) ? 0 : Fac);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -245,6 +280,13 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 5;
 					break;
+				case 0x2c: /* INR L */
+					r[L]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[L]] | ((r[L] & 0x0f) ? 0 : Fac);
+					rp[PC]++;
+					cycle += 5;
+					break;
 				case 0x2d: /* DCR L */
 					r[L]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
@@ -275,8 +317,11 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 5;
 					break;
-				case 0x36: /* MVI M,nn */
-					memory.write(rp[HL], memory.read(++rp[PC]));
+				case 0x34: /* INR M */
+					result = (memory.read(rp[HL]) + 1) & 0xff;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
+					memory.write(rp[HL], result);
 					rp[PC]++;
 					cycle += 10;
 					break;
@@ -285,6 +330,11 @@ function Processor8080(memory, io) {
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 					r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
 					memory.write(rp[HL], result);
+					rp[PC]++;
+					cycle += 10;
+					break;
+				case 0x36: /* MVI M,nn */
+					memory.write(rp[HL], memory.read(++rp[PC]));
 					rp[PC]++;
 					cycle += 10;
 					break;
@@ -309,6 +359,13 @@ function Processor8080(memory, io) {
 					break;
 				case 0x3b: /* DCX SP */
 					rp[SP]--;
+					rp[PC]++;
+					cycle += 5;
+					break;
+				case 0x3c: /* INR A */
+					r[A]++;
+					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+					r[F] = (r[F] & Fcy) | szpTable[r[A]] | ((r[A] & 0x0f) ? 0 : Fac);
 					rp[PC]++;
 					cycle += 5;
 					break;
