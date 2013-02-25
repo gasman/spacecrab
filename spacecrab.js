@@ -51,11 +51,11 @@ function IO() {
 	var self = {};
 
 	self.read = function(port) {
-		console.log('read from port ' + port);
+		// console.log('read from port ' + port);
 	};
 
 	self.write = function(port, val) {
-		console.log('write ' + val + ' to port ' + port);
+		// console.log('write ' + val + ' to port ' + port);
 	};
 
 	return self;
@@ -65,6 +65,11 @@ function init() {
 	var memory = Memory();
 	var io = IO();
 	var loadedRomCount = 0;
+	var screenCanvas = document.getElementById('screen');
+	var screenCtx = screenCanvas.getContext('2d');
+	var imageData = screenCtx.createImageData(224, 256);
+	var pixels = imageData.data;
+	var proc;
 
 	function loadRom(url, addr) {
 		loadFromUrl(url, function(data) {
@@ -81,15 +86,41 @@ function init() {
 
 	function allRomsLoaded() {
 		proc = Processor8080(memory, io);
-		for (var i = 0; i < 1000; i++) {
-			/* run for a frame at a time, alternating between RST 08 and RST 10 as interrupt routine */
-			proc.runForCycles(16667);
-			proc.logState();
-			proc.interrupt(0xcf); /* opcode for RST 08 */
+		runFrame();
+	}
 
-			proc.runForCycles(16667);
-			proc.logState();
-			proc.interrupt(0xd7); /* opcode for RST 10 */
+	var isOddFrame = true;
+	function runFrame() {
+		/* run for a frame at a time, alternating between RST 08 and RST 10 as interrupt routine */
+		proc.runForCycles(16667);
+		drawScreen();
+		proc.interrupt(isOddFrame ? 0xcf : 0xd7); /* opcode for RST 08 / RST 10 */
+		isOddFrame = !isOddFrame;
+		setTimeout(runFrame, 20);
+	}
+
+	function drawScreen() {
+		var rowStep = 224 * 4; /* number of bytes in one image row */
+
+		for (y = 0; y < 224; y++) { /* screen is rotated, so y actually iterates over the columns from left to right */
+			var pos = (rowStep * 255) + (y << 2); /* index of the bottom pixel in this column */
+			for (x = 0; x < 32; x++) { /* x starts at the screen bottom and works up */
+				var b = memory.read(0x2400 + (y << 5) + x);
+				for (var i = 0; i < 8; i++) {
+					if (b & 0x01) {
+						/* pixel set */
+						pixels[pos] = pixels[pos+1] = pixels[pos+2] = 0xff;
+						pixels[pos+3] = 0xff;
+					} else {
+						/* pixel reset */
+						pixels[pos] = pixels[pos+1] = pixels[pos+2] = 0x00;
+						pixels[pos+3] = 0xff;
+					}
+					b >>= 1;
+					pos -= rowStep; /* move up one pixel row */
+				}
+			}
 		}
+		screenCtx.putImageData(imageData, 0, 0);
 	}
 }
