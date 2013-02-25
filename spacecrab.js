@@ -90,13 +90,20 @@ function init() {
 		runFrame();
 	}
 
+	var intCount = 0;
 	function runFrame() {
-		proc.runForCycles(16667);
+		proc.runForCycles(16667/*, intCount==1649*/);
+		//proc.logState(intCount);
 		proc.interrupt(0xcf); /* opcode for RST 08 */
-		proc.runForCycles(16667);
+		intCount++;
+		proc.runForCycles(16667/*, intCount==1649*/);
+		//proc.logState(intCount);
 		proc.interrupt(0xd7); /* opcode for RST 10 */
+		intCount++;
 		drawScreen();
-		setTimeout(runFrame, 17); /* 60 Hz, ish */
+		if (intCount < 2000) {
+			setTimeout(runFrame, 17); /* 60 Hz, ish */
+		}
 	}
 
 	function drawScreen() {

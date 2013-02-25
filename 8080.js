@@ -51,7 +51,7 @@ function Processor8080(memory, io) {
 	var interruptPending = false;
 	var interruptOpcode;
 
-	self.runForCycles = function(cycleCount) {
+	self.runForCycles = function(cycleCount, trace) {
 		var lo, hi, result, opcode;
 
 		while(cycle < cycleCount) {
@@ -1357,6 +1357,7 @@ function Processor8080(memory, io) {
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
 			}
+			if (trace) self.logState('trace');
 		}
 		cycle -= cycleCount;
 	};
@@ -1368,8 +1369,8 @@ function Processor8080(memory, io) {
 		}
 	};
 
-	self.logState = function() {
-		console.log(rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle);
+	self.logState = function(intCount) {
+		console.log(intCount + ': ' + rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle);
 	};
 
 	return self;
