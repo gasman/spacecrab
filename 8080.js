@@ -678,6 +678,17 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 4;
 					break;
+				case 0xc0: /* RNZ */
+					if (r[F] & Fz) {
+						/* Z is set, so stay */
+						rp[PC]++;
+						cycle += 5;
+					} else {
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					}
+					break;
 				case 0xc1: /* POP BC */
 					r[C] = memory.read(rp[SP]++);
 					r[B] = memory.read(rp[SP]++);
@@ -714,6 +725,17 @@ function Processor8080(memory, io) {
 					memory.write(--rp[SP], r[PCl]);
 					rp[PC] = 0x0000;
 					cycle += 11;
+					break;
+				case 0xc8: /* RZ */
+					if (r[F] & Fz) {
+						/* Z is set, so return */
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					} else {
+						rp[PC]++;
+						cycle += 5;
+					}
 					break;
 				case 0xc9: /* RET */
 					r[PCl] = memory.read(rp[SP]++);
@@ -753,6 +775,17 @@ function Processor8080(memory, io) {
 					rp[PC] = 0x0008;
 					cycle += 11;
 					break;
+				case 0xd0: /* RNC */
+					if (r[F] & Fcy) {
+						/* Cy is set, so stay */
+						rp[PC]++;
+						cycle += 5;
+					} else {
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					}
+					break;
 				case 0xd1: /* POP DE */
 					r[E] = memory.read(rp[SP]++);
 					r[D] = memory.read(rp[SP]++);
@@ -788,6 +821,17 @@ function Processor8080(memory, io) {
 					rp[PC] = 0x0010;
 					cycle += 11;
 					break;
+				case 0xd8: /* RC */
+					if (r[F] & Fcy) {
+						/* Cy is set, so return */
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					} else {
+						rp[PC]++;
+						cycle += 5;
+					}
+					break;
 				case 0xda: /* JC nnnn */
 					if (r[F] & Fcy) {
 						/* Cy is set, so jump */
@@ -799,12 +843,28 @@ function Processor8080(memory, io) {
 					}
 					cycle += 10;
 					break;
+				case 0xdb: /* IN nn */
+					r[A] = io.read(memory.read(++rp[PC]));
+					rp[PC]++;
+					cycle += 10;
+					break;
 				case 0xdf: /* RST 18 */
 					rp[PC]++;
 					memory.write(--rp[SP], r[PCh]);
 					memory.write(--rp[SP], r[PCl]);
 					rp[PC] = 0x0018;
 					cycle += 11;
+					break;
+				case 0xe0: /* RPO */
+					if (r[F] & Fp) {
+						/* P is set, so stay */
+						rp[PC]++;
+						cycle += 5;
+					} else {
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					}
 					break;
 				case 0xe1: /* POP HL */
 					r[L] = memory.read(rp[SP]++);
@@ -842,6 +902,17 @@ function Processor8080(memory, io) {
 					rp[PC] = 0x0020;
 					cycle += 11;
 					break;
+				case 0xe8: /* RPE */
+					if (r[F] & Fp) {
+						/* P is set, so return */
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					} else {
+						rp[PC]++;
+						cycle += 5;
+					}
+					break;
 				case 0xea: /* JPE nnnn */
 					if (r[F] & Fp) {
 						/* P is set, so jump */
@@ -872,6 +943,17 @@ function Processor8080(memory, io) {
 					memory.write(--rp[SP], r[PCl]);
 					rp[PC] = 0x0028;
 					cycle += 11;
+					break;
+				case 0xf0: /* RP */
+					if (r[F] & Fs) {
+						/* S is set, so stay */
+						rp[PC]++;
+						cycle += 5;
+					} else {
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					}
 					break;
 				case 0xf1: /* POP PSW */
 					r[F] = memory.read(rp[SP]++);
@@ -913,6 +995,17 @@ function Processor8080(memory, io) {
 					memory.write(--rp[SP], r[PCl]);
 					rp[PC] = 0x0030;
 					cycle += 11;
+					break;
+				case 0xf8: /* RM */
+					if (r[F] & Fs) {
+						/* S is set, so return */
+						r[PCl] = memory.read(rp[SP]++);
+						r[PCh] = memory.read(rp[SP]++);
+						cycle += 11;
+					} else {
+						rp[PC]++;
+						cycle += 5;
+					}
 					break;
 				case 0xfa: /* JC nnnn */
 					if (r[F] & Fs) {

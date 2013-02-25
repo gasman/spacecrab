@@ -50,8 +50,12 @@ function Memory() {
 function IO() {
 	var self = {};
 
+	self.read = function(port) {
+		console.log('read from port ' + port);
+	};
+
 	self.write = function(port, val) {
-		console.log('port ' + port + ' <- ' + val);
+		console.log('write ' + val + ' to port ' + port);
 	};
 
 	return self;
