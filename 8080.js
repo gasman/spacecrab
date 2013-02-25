@@ -279,6 +279,11 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 10;
 					break;
+				case 0x37: /* STC */
+					r[F] |= Fcy;
+					rp[PC]++;
+					cycle += 4;
+					break;
 				case 0x39: /* DAD SP */
 					result = rp[HL] + rp[SP];
 					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
@@ -883,6 +888,15 @@ function Processor8080(memory, io) {
 					}
 					cycle += 10;
 					break;
+				case 0xe3: /* XTHL */
+					lo = memory.read(rp[SP]);
+					hi = memory.read(rp[SP] + 1);
+					memory.write(rp[SP], r[L]);
+					memory.write(rp[SP] + 1, r[H]);
+					r[L] = lo; r[H] = hi;
+					rp[PC]++;
+					cycle += 18;
+					break;
 				case 0xe5: /* PUSH HL */
 					memory.write(--rp[SP], r[H]);
 					memory.write(--rp[SP], r[L]);
@@ -912,6 +926,10 @@ function Processor8080(memory, io) {
 						rp[PC]++;
 						cycle += 5;
 					}
+					break;
+				case 0xe9: /* PCHL */
+					rp[PC] = rp[HL];
+					cycle += 5;
 					break;
 				case 0xea: /* JPE nnnn */
 					if (r[F] & Fp) {
