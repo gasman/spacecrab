@@ -47,8 +47,19 @@ function Memory() {
 	return self;
 }
 
+function IO() {
+	var self = {};
+
+	self.write = function(port, val) {
+		console.log('port ' + port + ' <- ' + val);
+	};
+
+	return self;
+}
+
 function init() {
 	var memory = Memory();
+	var io = IO();
 	var loadedRomCount = 0;
 
 	function loadRom(url, addr) {
@@ -65,7 +76,7 @@ function init() {
 	loadRom('roms/invaders.e', 0x1800);
 
 	function allRomsLoaded() {
-		proc = Processor8080(memory);
+		proc = Processor8080(memory, io);
 		proc.runForCycles(1000000);
 	}
 }

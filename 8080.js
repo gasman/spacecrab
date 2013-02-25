@@ -1,4 +1,4 @@
-function Processor8080(memory) {
+function Processor8080(memory, io) {
 	var self = {};
 
 	var endianTestBuffer = new ArrayBuffer(2);
@@ -72,7 +72,7 @@ function Processor8080(memory) {
 				case 0x05: /* DCR B */
 					r[B]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[B]] | (r[B] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[B]] | ((r[B] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -101,7 +101,7 @@ function Processor8080(memory) {
 				case 0x0d: /* DCR C */
 					r[C]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[C]] | (r[C] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[C]] | ((r[C] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -124,7 +124,7 @@ function Processor8080(memory) {
 				case 0x15: /* DCR D */
 					r[D]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[D]] | (r[D] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[D]] | ((r[D] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -153,7 +153,7 @@ function Processor8080(memory) {
 				case 0x1d: /* DCR E */
 					r[E]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[E]] | (r[E] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[E]] | ((r[E] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -176,7 +176,7 @@ function Processor8080(memory) {
 				case 0x25: /* DCR H */
 					r[H]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[H]] | (r[H] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[H]] | ((r[H] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -200,7 +200,7 @@ function Processor8080(memory) {
 				case 0x2d: /* DCR L */
 					r[L]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[L]] | (r[L] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[L]] | ((r[L] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -237,10 +237,10 @@ function Processor8080(memory) {
 					rp[PC]++;
 					cycle += 5;
 					break;
-				case 0x3d: /* DCR L */
-					r[L]--;
+				case 0x3d: /* DCR A */
+					r[A]--;
 					/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-					r[F] = (r[F] & Fcy) | szpTable[r[L]] | (r[L] & 0x0f == 0x0f ? Fac : 0);
+					r[F] = (r[F] & Fcy) | szpTable[r[A]] | ((r[A] & 0x0f) == 0x0f ? Fac : 0);
 					rp[PC]++;
 					cycle += 5;
 					break;
@@ -572,6 +572,11 @@ function Processor8080(memory) {
 					}
 					cycle += 10;
 					break;
+				case 0xd3: /* OUT nn */
+					io.write(memory.read(++rp[PC]), r[A]);
+					rp[PC]++;
+					cycle += 10;
+					break;
 				case 0xd5: /* PUSH DE */
 					memory.write(--rp[SP], r[D]);
 					memory.write(--rp[SP], r[E]);
@@ -673,6 +678,7 @@ function Processor8080(memory) {
 				default:
 					throw('unimplemented opcode: ' + opcode.toString(16));
 			}
+			/* console.log(rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle); */
 		}
 		cycle -= cycleCount;
 	};
