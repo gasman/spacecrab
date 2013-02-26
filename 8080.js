@@ -268,6 +268,21 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 7;
 					break;
+				case 0x27: /* DAA */
+					var newF = 0;
+					if (((r[A] & 0x0f) > 0x09) || (r[F] & Fac)) {
+						/* add 6 to A; set AC if this causes overflow from bit 3 (i.e. bottom four bits are >= A) */
+						newF |= ((r[A] & 0x0f) >= 0x0a) ? Fac : 0;
+						r[A] += 0x06;
+					}
+					if (((r[A] & 0xf0) > 0x90) || (r[F] & Fcy)) {
+						newF |= ((r[A] & 0xf0) >= 0xa0) ? Fcy : 0;
+						r[A] += 0x60;
+					}
+					r[F] = newF | szpTable[r[A]];
+					rp[PC]++;
+					cycle += 4;
+					break;
 				case 0x29: /* DAD HL */
 					result = rp[HL] + rp[HL];
 					r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
