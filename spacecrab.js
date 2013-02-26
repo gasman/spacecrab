@@ -54,9 +54,21 @@ function IO() {
 	var port4hi = 0;
 	var port4lo = 0;
 
+	var port1 = 0;
+
+	window.addEventListener('keyup', function(e) {
+		if (e.which == 67) {
+			port1 |= 0x01; /* register 'insert coin' */
+		}
+	});
+
 	self.read = function(port) {
 		// console.log('read from port ' + port);
 		switch(port) {
+			case 1:
+				var result = port1;
+				port1 &= 0xfe; /* clear 'insert coin' state */
+				return result;
 			case 3:
 				var port4 = (port4hi << 8) | port4lo;
 				return ((port4 << port2) >> 8) & 0xff;
