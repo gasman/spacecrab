@@ -73,6 +73,11 @@ function Processor8080(memory, io) {
 					rp[PC]++;
 					cycle += 10;
 					break;
+				case 0x02: /* STAX BC */
+					memory.write(rp[BC], r[A]);
+					rp[PC]++;
+					cycle += 7;
+					break;
 				case 0x03: /* INX BC */
 					rp[BC]++;
 					rp[PC]++;
@@ -152,6 +157,11 @@ function Processor8080(memory, io) {
 					r[D] = memory.read(++rp[PC]);
 					rp[PC]++;
 					cycle += 10;
+					break;
+				case 0x12: /* STAX DE */
+					memory.write(rp[DE], r[A]);
+					rp[PC]++;
+					cycle += 7;
 					break;
 				case 0x13: /* INX DE */
 					rp[DE]++;
@@ -1370,6 +1380,11 @@ function Processor8080(memory, io) {
 						rp[PC]++;
 						cycle += 5;
 					}
+					break;
+				case 0xf9: /* SPHL */
+					rp[SP] = rp[HL];
+					rp[PC]++;
+					cycle += 5;
 					break;
 				case 0xfa: /* JC nnnn */
 					if (r[F] & Fs) {
