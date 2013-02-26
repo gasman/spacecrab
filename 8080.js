@@ -661,6 +661,47 @@ function Processor8080(memory, io) {
 					r[A] = result;
 					rp[PC]++; cycle += 4; break;
 
+				case 0x88: /* ADC B */
+					result = (r[A] + r[B] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x89: /* ADC C */
+					result = (r[A] + r[C] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x8a: /* ADC D */
+					result = (r[A] + r[D] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x8b: /* ADC E */
+					result = (r[A] + r[E] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x8c: /* ADC H */
+					result = (r[A] + r[H] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x8d: /* ADC L */
+					result = (r[A] + r[L] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+				case 0x8e: /* ADC M */
+					result = (r[A] + memory.read(rp[HL]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 7; break;
+				case 0x8f: /* ADC A */
+					result = (r[A] + r[A] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 4; break;
+
 				case 0x90: /* SUB B */
 					result = (r[A] - r[B]) & 0xff;
 					r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
@@ -984,6 +1025,11 @@ function Processor8080(memory, io) {
 					r[PCh] = hi; r[PCl] = lo;
 					cycle += 17;
 					break;
+				case 0xce: /* ACI nn */
+					result = (r[A] + memory.read(++rp[PC]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+					r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+					r[A] = result;
+					rp[PC]++; cycle += 7; break;
 				case 0xcf: /* RST 08 */
 					rp[PC]++;
 					memory.write(--rp[SP], r[PCh]);
