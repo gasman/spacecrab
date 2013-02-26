@@ -50,13 +50,32 @@ function Memory() {
 function IO() {
 	var self = {};
 
+	var port2 = 0;
+	var port4hi = 0;
+	var port4lo = 0;
+
 	self.read = function(port) {
 		// console.log('read from port ' + port);
-		return 0;
+		switch(port) {
+			case 3:
+				var port4 = (port4hi << 8) | port4lo;
+				return ((port4 << port2) >> 8) & 0xff;
+			default:
+				return 0;
+		}
 	};
 
 	self.write = function(port, val) {
 		// console.log('write ' + val + ' to port ' + port);
+		switch(port) {
+			case 2:
+				port2 = val;
+				break;
+			case 4:
+				port4lo = port4hi;
+				port4hi = val;
+				break;
+		}
 	};
 
 	return self;
@@ -101,9 +120,9 @@ function init() {
 		proc.interrupt(0xd7); /* opcode for RST 10 */
 		intCount++;
 		drawScreen();
-		if (intCount < 2000) {
-			setTimeout(runFrame, 17); /* 60 Hz, ish */
-		}
+		//if (intCount < 2000) {
+		setTimeout(runFrame, 17); /* 60 Hz, ish */
+		//}
 	}
 
 	function drawScreen() {
