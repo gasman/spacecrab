@@ -77,8 +77,6 @@ function IO() {
 				port1 |= 0x40;
 				port2in |= 0x40;
 				break;
-			default:
-				console.log(e.which);
 		}
 	});
 
@@ -105,8 +103,6 @@ function IO() {
 				port1 &= ~0x40;
 				port2in &= ~0x40;
 				break;
-			default:
-				console.log(e.which);
 		}
 	});
 
