@@ -55,10 +55,58 @@ function IO() {
 	var port4lo = 0;
 
 	var port1 = 0;
+	var port2in = 0;
+
+	window.addEventListener('keydown', function(e) {
+		switch (e.which) {
+			case 49: /* '1' = 1 player */
+				port1 |= 0x04;
+				break;
+			case 50: /* '2' = 2 player */
+				port1 |= 0x02;
+				break;
+			case 190: /* '.' = fire */
+				port1 |= 0x10;
+				port2in |= 0x10;
+				break;
+			case 90: /* 'z' = left */
+				port1 |= 0x20;
+				port2in |= 0x20;
+				break;
+			case 88: /* 'x' = right */
+				port1 |= 0x40;
+				port2in |= 0x40;
+				break;
+			default:
+				console.log(e.which);
+		}
+	});
 
 	window.addEventListener('keyup', function(e) {
-		if (e.which == 67) {
-			port1 |= 0x01; /* register 'insert coin' */
+		switch (e.which) {
+			case 49: /* '1' = 1 player */
+				port1 &= ~0x04;
+				break;
+			case 50: /* '2' = 2 player */
+				port1 &= ~0x02;
+				break;
+			case 67:
+				port1 |= 0x01; /* register 'insert coin' */
+				break;
+			case 190: /* '.' = fire */
+				port1 &= ~0x10;
+				port2in &= ~0x10;
+				break;
+			case 90: /* 'z' = left */
+				port1 &= ~0x20;
+				port2in &= ~0x20;
+				break;
+			case 88: /* 'x' = right */
+				port1 &= ~0x40;
+				port2in &= ~0x40;
+				break;
+			default:
+				console.log(e.which);
 		}
 	});
 
@@ -69,6 +117,8 @@ function IO() {
 				var result = port1;
 				port1 &= 0xfe; /* clear 'insert coin' state */
 				return result;
+			case 2:
+				return port2in;
 			case 3:
 				var port4 = (port4hi << 8) | port4lo;
 				return ((port4 << port2) >> 8) & 0xff;
