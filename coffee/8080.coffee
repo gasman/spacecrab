@@ -1,79 +1,109 @@
+# Handy lookups to allow us to dissect register pairs
+BC = {'p': 'BC', 'h': 'B', 'l': 'C'}
+DE = {'p': 'DE', 'h': 'D', 'l': 'E'}
+HL = {'p': 'HL', 'h': 'H', 'l': 'L'}
+
+B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
+# Constructors for runstrings for each class of operations
+
+DAD_RR = (rr) -> """
+	result = rp[HL] + rp[#{rr.p}];
+	r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+	rp[HL] = result;
+	rp[PC]++;
+	cycle += 10;
+"""
+
+DCR_R = (r) -> """
+	r[#{r}]--;
+	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) == 0x0f ? Fac : 0);
+	rp[PC]++;
+	cycle += 5;
+"""
+
+DCX_RR = (rr) -> """
+	rp[#{rr.p}]--;
+	rp[PC]++;
+	cycle += 5;
+"""
+
+INX_RR = (rr) -> """
+	rp[#{rr.p}]++;
+	rp[PC]++;
+	cycle += 5;
+"""
+
+INR_R = (r) -> """
+	r[#{r}]++;
+	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
+	rp[PC]++;
+	cycle += 5;
+"""
+
+LDAX_RR = (rr) -> """
+	r[A] = memory.read(rp[#{rr.p}]);
+	rp[PC]++;
+	cycle += 7;
+"""
+
+LXI_RR_NNNN = (rr) -> """
+	r[#{rr.l}] = memory.read(++rp[PC]);
+	r[#{rr.h}] = memory.read(++rp[PC]);
+	rp[PC]++;
+	cycle += 10;
+"""
+
+MVI_R_NN = (r) -> """
+	r[#{r}] = memory.read(++rp[PC]);
+	rp[PC]++;
+	cycle += 7;
+"""
+
+NOP = () -> """
+	rp[PC]++;
+	cycle += 4;
+"""
+
+RLC = () -> """
+	/* copy top bit of A to carry flag */
+	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+	r[A] = (r[A] << 1) | ((r[A] & 0x80) >> 7);
+	rp[PC]++;
+	cycle += 4;
+"""
+
+STAX_RR = (rr) -> """
+	memory.write(rp[#{rr.p}], r[A]);
+	rp[PC]++;
+	cycle += 7;
+"""
+
 # A mapping from opcodes to Javascript strings that perform them
 OPCODE_RUN_STRINGS = {
 	# NOP
-	0x00: """
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x00: NOP()
 	# LXI BC,nnnn
-	0x01: """
-		r[C] = memory.read(++rp[PC]);
-		r[B] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x01: LXI_RR_NNNN(BC)
 	# STAX BC
-	0x02: """
-		memory.write(rp[BC], r[A]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x02: STAX_RR(BC)
 	# INX BC
-	0x03: """
-		rp[BC]++;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x03: INX_RR(BC)
 	# INR B
-	0x04: """
-		r[B]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[B]] | ((r[B] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x04: INR_R(B)
 	# DCR B
-	0x05: """
-		r[B]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[B]] | ((r[B] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x05: DCR_R(B)
 	# MVI B,nn
-	0x06: """
-		r[B] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x06: MVI_R_NN(B)
 	# RLC
-	0x07: """
-		/* copy top bit of A to carry flag */
-		r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-		r[A] = (r[A] << 1) | ((r[A] & 0x80) >> 7);
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x07: RLC()
 	# DAD BC
-	0x09: """
-		result = rp[HL] + rp[BC];
-		r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
-		rp[HL] = result;
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x09: DAD_RR(BC)
 	# LDAX BC
-	0x0a: """
-		r[A] = memory.read(rp[BC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x0a: LDAX_RR(BC)
 	# DCX BC
-	0x0b: """
-		rp[BC]--;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x0b: DCX_RR(BC)
 	# INR C
 	0x0c: """
 		r[C]++;
