@@ -36,91 +36,87 @@ condP = "!(r[#{F}] & Fs)"
 # Constructors for runstrings for each class of operations
 
 ACI_NN = () -> """
-	result = (r[#{A}] + memory.read(++rp[#{PC.p}]) + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	result = (r[#{A}] + memory.read(rp[#{PC.p}]++) + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 ADC_M = () -> """
 	result = (r[#{A}] + memory.read(rp[#{HL.p}]) + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 ADC_R = (r) -> """
 	result = (r[#{A}] + r[#{r}] + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 4;
+	cycle += 4;
 """
 
 ADD_M = () -> """
 	result = (r[#{A}] + memory.read(rp[#{HL.p}])) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 ADD_R = (r) -> """
 	result = (r[#{A}] + r[#{r}]) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 4;
+	cycle += 4;
 """
 
 ADI_NN = () -> """
-	result = (r[#{A}] + memory.read(++rp[#{PC.p}])) & 0xff;
+	result = (r[#{A}] + memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 ANA_M = () -> """
 	r[#{A}] &= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 ANA_R = (r) ->
 	if r == A
 		"""
 			r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 	else
 		"""
 			r[#{A}] &= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 
 ANI_NN = () -> """
-	r[#{A}] &= memory.read(++rp[#{PC.p}]);
+	r[#{A}] &= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 CALL_C = (cond) -> """
 	if (#{cond}) {
-		lo = memory.read(++rp[#{PC.p}]);
-		hi = memory.read(++rp[#{PC.p}]);
-		rp[#{PC.p}]++;
+		lo = memory.read(rp[#{PC.p}]++);
+		hi = memory.read(rp[#{PC.p}]++);
 		memory.write(--rp[#{SP.p}], r[#{PCh}]);
 		memory.write(--rp[#{SP.p}], r[#{PCl}]);
 		r[#{PCh}] = hi; r[#{PCl}] = lo;
 		cycle += 17;
 	} else {
-		rp[#{PC.p}] += 3;
+		rp[#{PC.p}] += 2;
 		cycle += 11;
 	}
 """
 
 CALL_NNNN = (cond) -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
-	rp[#{PC.p}]++;
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]++);
 	memory.write(--rp[#{SP.p}], r[#{PCh}]);
 	memory.write(--rp[#{SP.p}], r[#{PCl}]);
 	r[#{PCh}] = hi; r[#{PCl}] = lo;
@@ -129,13 +125,11 @@ CALL_NNNN = (cond) -> """
 
 CMA = () -> """
 	r[#{A}] = ~r[#{A}];
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 CMC = () -> """
 	r[#{F}] ^= (r[#{F}] & Fcy);
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -143,7 +137,6 @@ CMP_M = () ->
 	"""
 		result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
 		r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
-		rp[#{PC.p}]++;
 		cycle += 7;
 	"""
 
@@ -151,21 +144,18 @@ CMP_R = (r) ->
 	if r == A
 		"""
 			r[#{F}] = szpTable[0];
-			rp[#{PC.p}]++;
 			cycle += 4;
 		"""
 	else
 		"""
 			result = (r[#{A}] - r[#{r}]) & 0xff;
 			r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
-			rp[#{PC.p}]++;
 			cycle += 4;
 		"""
 
 CPI_NN = () -> """
-	result = (r[#{A}] - memory.read(++rp[#{PC.p}])) & 0xff;
+	result = (r[#{A}] - memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
@@ -181,7 +171,6 @@ DAA = () -> """
 		r[#{A}] += 0x60;
 	}
 	r[#{F}] = newF | szpTable[r[#{A}]];
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -189,7 +178,6 @@ DAD_RR = (rr) -> """
 	result = rp[#{HL.p}] + rp[#{rr.p}];
 	r[#{F}] = (r[#{F}] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
 	rp[#{HL.p}] = result;
-	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
@@ -198,7 +186,6 @@ DCR_M = () -> """
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 	r[#{F}] = (r[#{F}] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
 	memory.write(rp[#{HL.p}], result);
-	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
@@ -206,37 +193,31 @@ DCR_R = (r) -> """
 	r[#{r}]--;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 	r[#{F}] = (r[#{F}] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) == 0x0f ? Fac : 0);
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 DCX_RR = (rr) -> """
 	rp[#{rr.p}]--;
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 DI = () -> """
 	interruptsEnabled = false;
-	rp[#{PC.p}] += 1;
 	cycle += 4;
 """
 
 EI = () -> """
 	interruptsEnabled = true;
-	rp[#{PC.p}] += 1;
 	cycle += 4;
 """
 
 IN_NN = () -> """
-	r[#{A}] = io.read(memory.read(++rp[#{PC.p}]));
-	rp[#{PC.p}]++;
+	r[#{A}] = io.read(memory.read(rp[#{PC.p}]++));
 	cycle += 10;
 """
 
 INX_RR = (rr) -> """
 	rp[#{rr.p}]++;
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
@@ -245,7 +226,6 @@ INR_M = () -> """
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
 	r[#{F}] = (r[#{F}] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
 	memory.write(rp[#{HL.p}], result);
-	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
@@ -253,125 +233,114 @@ INR_R = (r) -> """
 	r[#{r}]++;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
 	r[#{F}] = (r[#{F}] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 JMP_C = (cond) -> """
 	if (#{cond}) {
-		lo = memory.read(++rp[#{PC.p}]);
-		hi = memory.read(++rp[#{PC.p}]);
+		lo = memory.read(rp[#{PC.p}]++);
+		hi = memory.read(rp[#{PC.p}]);
 		r[#{PCh}] = hi; r[#{PCl}] = lo;
 	} else {
-		rp[#{PC.p}] += 3;
+		rp[#{PC.p}] += 2;
 	}
 	cycle += 10;
 """
 
 JMP_NNNN = () -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]);
 	r[#{PCh}] = hi; r[#{PCl}] = lo;
 	cycle += 10;
 """
 
 LDA_NNNN = () -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]++);
 	r[#{A}] = memory.read((hi << 8) | lo);
-	rp[#{PC.p}]++;
 	cycle += 13;
 """
 
 LDAX_RR = (rr) -> """
 	r[#{A}] = memory.read(rp[#{rr.p}]);
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 LHLD_NNNN = () -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]++);
 	result = (hi << 8) | lo;
 	r[#{L}] = memory.read(result);
 	r[#{H}] = memory.read((result + 1) & 0xffff);
-	rp[#{PC.p}]++;
 	cycle += 16;
 """
 
 LXI_RR_NNNN = (rr) -> """
-	r[#{rr.l}] = memory.read(++rp[#{PC.p}]);
-	r[#{rr.h}] = memory.read(++rp[#{PC.p}]);
-	rp[#{PC.p}]++;
+	r[#{rr.l}] = memory.read(rp[#{PC.p}]++);
+	r[#{rr.h}] = memory.read(rp[#{PC.p}]++);
 	cycle += 10;
 """
 
 MOV_M_R = (r) -> """
 	memory.write(rp[#{HL.p}], r[#{r}]);
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 MOV_R_M = (r) -> """
 	r[#{r}] = memory.read(rp[#{HL.p}]);
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 MOV_R_R = (r1, r2) ->
 	if r1 == r2
 		"""
-			rp[#{PC.p}]++; cycle += 5;
+			cycle += 5;
 		"""
 	else
 		"""
 			r[#{r1}] = r[#{r2}];
-			rp[#{PC.p}]++; cycle += 5;
+			cycle += 5;
 		"""
 
 MVI_M_NN = () -> """
-	memory.write(rp[#{HL.p}], memory.read(++rp[#{PC.p}]));
-	rp[#{PC.p}]++;
+	memory.write(rp[#{HL.p}], memory.read(rp[#{PC.p}]++));
 	cycle += 10;
 """
 
 MVI_R_NN = (r) -> """
-	r[#{r}] = memory.read(++rp[#{PC.p}]);
-	rp[#{PC.p}]++;
+	r[#{r}] = memory.read(rp[#{PC.p}]++);
 	cycle += 7;
 """
 
 NOP = () -> """
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 ORA_M = () -> """
 	r[#{A}] |= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 ORA_R = (r) ->
 	if r == A
 		"""
 			r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 	else
 		"""
 			r[#{A}] |= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 
 ORI_NN = () -> """
-	r[#{A}] |= memory.read(++rp[#{PC.p}]);
+	r[#{A}] |= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 OUT_NN = () -> """
-	io.write(memory.read(++rp[#{PC.p}]), r[#{A}]);
-	rp[#{PC.p}]++;
+	io.write(memory.read(rp[#{PC.p}]++), r[#{A}]);
 	cycle += 10;
 """
 
@@ -383,14 +352,12 @@ PCHL = () -> """
 POP_RR = (rr) -> """
 	r[#{rr.l}] = memory.read(rp[#{SP.p}]++);
 	r[#{rr.h}] = memory.read(rp[#{SP.p}]++);
-	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 PUSH_RR = (rr) -> """
 	memory.write(--rp[#{SP.p}], r[#{rr.h}]);
 	memory.write(--rp[#{SP.p}], r[#{rr.l}]);
-	rp[#{PC.p}]++;
 	cycle += 11;
 """
 
@@ -399,7 +366,6 @@ RAL = () -> """
 	/* copy top bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
 	r[#{A}] = result;
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -408,7 +374,6 @@ RAR = () -> """
 	/* copy bottom bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
 	r[#{A}] = result;
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -424,7 +389,6 @@ RET_C = (cond) -> """
 		r[#{PCh}] = memory.read(rp[#{SP.p}]++);
 		cycle += 11;
 	} else {
-		rp[#{PC.p}]++;
 		cycle += 5;
 	}
 """
@@ -433,7 +397,6 @@ RLC = () -> """
 	/* copy top bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
 	r[#{A}] = (r[#{A}] << 1) | ((r[#{A}] & 0x80) >> 7);
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -441,12 +404,10 @@ RRC = () -> """
 	/* copy bottom bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
 	r[#{A}] = (r[#{A}] >> 1) | ((r[#{A}] & 0x01) << 7);
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 RST = (addr) -> """
-	rp[#{PC.p}]++;
 	memory.write(--rp[#{SP.p}], r[#{PCh}]);
 	memory.write(--rp[#{SP.p}], r[#{PCl}]);
 	rp[#{PC.p}] = #{addr};
@@ -457,57 +418,51 @@ SBB_M = () -> """
 	result = (r[#{A}] - memory.read(rp[#{HL.p}]) - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 SBB_R = (r) -> """
 	result = (r[#{A}] - r[#{r}] - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 4;
+	cycle += 4;
 """
 
 SBI_NN = () -> """
-	result = (r[#{A}] - memory.read(++rp[#{PC.p}]) - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	result = (r[#{A}] - memory.read(rp[#{PC.p}]++) - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 SHLD_NNNN = () -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]++);
 	result = (hi << 8) | lo;
 	memory.write(result, r[#{L}]);
 	memory.write((result + 1) & 0xffff, r[#{H}]);
-	rp[#{PC.p}]++;
 	cycle += 16;
 """
 
 SPHL = () -> """
 	rp[#{SP.p}] = rp[#{HL.p}];
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 STA_NNNN = () -> """
-	lo = memory.read(++rp[#{PC.p}]);
-	hi = memory.read(++rp[#{PC.p}]);
+	lo = memory.read(rp[#{PC.p}]++);
+	hi = memory.read(rp[#{PC.p}]++);
 	memory.write((hi << 8) | lo, r[#{A}]);
-	rp[#{PC.p}]++;
 	cycle += 13;
 """
 
 STAX_RR = (rr) -> """
 	memory.write(rp[#{rr.p}], r[#{A}]);
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 STC = () -> """
 	r[#{F}] |= Fcy;
-	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
@@ -515,21 +470,20 @@ SUB_M = () -> """
 	result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 SUB_R = (r) -> """
 	result = (r[#{A}] - r[#{r}]) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++; cycle += 4;
+	cycle += 4;
 """
 
 SUI_NN = () -> """
-	result = (r[#{A}] - memory.read(++rp[#{PC.p}])) & 0xff;
+	result = (r[#{A}] - memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
 	r[#{A}] = result;
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
@@ -537,31 +491,29 @@ XCHG = () -> """
 	result = rp[#{HL.p}];
 	rp[#{HL.p}] = rp[#{DE.p}];
 	rp[#{DE.p}] = result;
-	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 XRA_M = () -> """
 	r[#{A}] ^= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++; cycle += 7;
+	cycle += 7;
 """
 
 XRA_R = (r) ->
 	if r == A
 		"""
 			r[#{A}] = 0; r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 	else
 		"""
 			r[#{A}] ^= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
-			rp[#{PC.p}]++; cycle += 4;
+			cycle += 4;
 		"""
 
 XRI_NN = () -> """
-	r[#{A}] ^= memory.read(++rp[#{PC.p}]);
+	r[#{A}] ^= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
-	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
@@ -571,7 +523,6 @@ XTHL = () -> """
 	memory.write(rp[#{SP.p}], r[#{L}]);
 	memory.write(rp[#{SP.p}] + 1, r[#{H}]);
 	r[#{L}] = lo; r[#{H}] = hi;
-	rp[#{PC.p}]++;
 	cycle += 18;
 """
 
@@ -897,9 +848,8 @@ window.Processor8080 = function(memory, io) {
 			if (interruptPending) {
 				opcode = interruptOpcode;
 				interruptPending = false;
-				rp[#{PC.p}]--; /* compensate for PC being incremented in the execution of a regular instruction, which shouldn't happen here */
 			} else {
-				opcode = memory.read(rp[#{PC.p}]);
+				opcode = memory.read(rp[#{PC.p}]++);
 			}
 
 			#{opcodeSwitch(OPCODE_RUN_STRINGS)}
