@@ -120,6 +120,12 @@ LXI_RR_NNNN = (rr) -> """
 	cycle += 10;
 """
 
+MOV_M_R = (r) -> """
+	memory.write(rp[HL], r[#{r}]);
+	rp[PC]++;
+	cycle += 7;
+"""
+
 MOV_R_M = (r) -> """
 	r[#{r}] = memory.read(rp[HL]);
 	rp[PC]++; cycle += 7; break;
@@ -324,68 +330,22 @@ OPCODE_RUN_STRINGS = {
 	0x6d: MOV_R_R(L, L)      # MOV L,L
 	0x6e: MOV_R_M(L)         # MOV L,M
 	0x6f: MOV_R_R(L, A)      # MOV L,A
-	# MOV M,B
-	0x70: """
-		memory.write(rp[HL], r[B]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,C
-	0x71: """
-		memory.write(rp[HL], r[C]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,D
-	0x72: """
-		memory.write(rp[HL], r[D]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,E
-	0x73: """
-		memory.write(rp[HL], r[E]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,H
-	0x74: """
-		memory.write(rp[HL], r[H]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,L
-	0x75: """
-		memory.write(rp[HL], r[L]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# MOV M,A
-	0x77: """
-		memory.write(rp[HL], r[A]);
-		rp[PC]++;
-		cycle += 7;
+	0x70: MOV_M_R(B)         # MOV M,B
+	0x71: MOV_M_R(C)         # MOV M,C
+	0x72: MOV_M_R(D)         # MOV M,D
+	0x73: MOV_M_R(E)         # MOV M,E
+	0x74: MOV_M_R(H)         # MOV M,H
+	0x75: MOV_M_R(L)         # MOV M,L
 
-	"""
-	# MOV A,B
-	0x78: MOV_R_R(A, B)
-	# MOV A,C
-	0x79: MOV_R_R(A, C)
-	# MOV A,D
-	0x7a: MOV_R_R(A, D)
-	# MOV A,E
-	0x7b: MOV_R_R(A, E)
-	# MOV A,H
-	0x7c: MOV_R_R(A, H)
-	# MOV A,L
-	0x7d: MOV_R_R(A, L)
-	# MOV A,M
-	0x7e: """
-		r[A] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV A,A
-	0x7f: MOV_R_R(A, A)
+	0x77: MOV_M_R(A)         # MOV M,A
+	0x78: MOV_R_R(A, B)      # MOV A,B
+	0x79: MOV_R_R(A, C)      # MOV A,C
+	0x7a: MOV_R_R(A, D)      # MOV A,D
+	0x7b: MOV_R_R(A, E)      # MOV A,E
+	0x7c: MOV_R_R(A, H)      # MOV A,H
+	0x7d: MOV_R_R(A, L)      # MOV A,L
+	0x7e: MOV_R_M(A)         # MOV A,M
+	0x7f: MOV_R_R(A, A)      # MOV A,A
 	# ADD B
 	0x80: """
 		result = (r[A] + r[B]) & 0xff;
