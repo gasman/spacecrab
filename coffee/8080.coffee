@@ -1,560 +1,577 @@
-# Handy lookups to allow us to dissect register pairs
-BC = {'p': 'BC', 'h': 'B', 'l': 'C'}
-DE = {'p': 'DE', 'h': 'D', 'l': 'E'}
-HL = {'p': 'HL', 'h': 'H', 'l': 'L'}
-SP = {'p': 'SP', 'h': 'SPh', 'l': 'SPl'}
-AF = {'p': 'AF', 'h': 'A', 'l': 'F'}
+# Test endianness of host processor, so that we can arrange the register buffer
+# appropriately for access as individual registers or register pairs
 
-A = 'A'; B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
+endianTestBuffer = new ArrayBuffer(2)
+endianTestUint16 = new Uint16Array(endianTestBuffer)
+endianTestUint8 = new Uint8Array(endianTestBuffer)
 
-condZ = 'r[F] & Fz'
-condNZ = '!(r[F] & Fz)'
-condC = 'r[F] & Fcy'
-condNC = '!(r[F] & Fcy)'
-condPE = 'r[F] & Fp'
-condPO = '!(r[F] & Fp)'
-condM = 'r[F] & Fs'
-condP = '!(r[F] & Fs)'
+endianTestUint16[0] = 0x0100
+isBigEndian = (endianTestUint8[0] == 0x01)
+
+# Define positions of individual registers within the register buffer
+if isBigEndian
+	A = 0; F = 1; B = 2; C = 3; D = 4; E = 5; H = 6; L = 7;
+	SPh = 8; SPl = 9; PCh = 10; PCl = 11;
+else
+	A = 1; F = 0; B = 3; C = 2; D = 5; E = 4; H = 7; L = 6;
+	SPh = 9; SPl = 8; PCh = 11; PCl = 10;
+
+# Define positions of register pairs and their component parts within the register buffer
+AF = {'p': 0, 'h': A, 'l': F}
+BC = {'p': 1, 'h': B, 'l': C}
+DE = {'p': 2, 'h': D, 'l': E}
+HL = {'p': 3, 'h': H, 'l': L}
+SP = {'p': 4, 'h': SPh, 'l': SPl}
+PC = {'p': 5, 'h': PCh, 'l': SPl}
+
+condZ = "r[#{F}] & Fz"
+condNZ = "!(r[#{F}] & Fz)"
+condC = "r[#{F}] & Fcy"
+condNC = "!(r[#{F}] & Fcy)"
+condPE = "r[#{F}] & Fp"
+condPO = "!(r[#{F}] & Fp)"
+condM = "r[#{F}] & Fs"
+condP = "!(r[#{F}] & Fs)"
 
 # Constructors for runstrings for each class of operations
 
 ACI_NN = () -> """
-	result = (r[A] + memory.read(++rp[PC]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 7;
+	result = (r[#{A}] + memory.read(++rp[#{PC.p}]) + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 ADC_M = () -> """
-	result = (r[A] + memory.read(rp[HL]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 7;
+	result = (r[#{A}] + memory.read(rp[#{HL.p}]) + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 ADC_R = (r) -> """
-	result = (r[A] + r[#{r}] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 4;
+	result = (r[#{A}] + r[#{r}] + ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 4;
 """
 
 ADD_M = () -> """
-	result = (r[A] + memory.read(rp[HL])) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 7;
+	result = (r[#{A}] + memory.read(rp[#{HL.p}])) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 ADD_R = (r) -> """
-	result = (r[A] + r[#{r}]) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 4;
+	result = (r[#{A}] + r[#{r}]) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 4;
 """
 
 ADI_NN = () -> """
-	result = (r[A] + memory.read(++rp[PC])) & 0xff;
-	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++;
+	result = (r[#{A}] + memory.read(++rp[#{PC.p}])) & 0xff;
+	r[#{F}] = szpTable[result] | (result < r[#{A}] ? Fcy : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 ANA_M = () -> """
-	r[A] &= memory.read(rp[HL]); r[F] = szpTable[r[A]];
-	rp[PC]++; cycle += 7;
+	r[#{A}] &= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 ANA_R = (r) ->
 	if r == A
 		"""
-			r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 	else
 		"""
-			r[A] &= r[#{r}]; r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{A}] &= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 
 ANI_NN = () -> """
-	r[A] &= memory.read(++rp[PC]);
-	r[F] = szpTable[r[A]];
-	rp[PC]++;
+	r[#{A}] &= memory.read(++rp[#{PC.p}]);
+	r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 CALL_C = (cond) -> """
 	if (#{cond}) {
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		r[PCh] = hi; r[PCl] = lo;
+		lo = memory.read(++rp[#{PC.p}]);
+		hi = memory.read(++rp[#{PC.p}]);
+		rp[#{PC.p}]++;
+		memory.write(--rp[#{SP.p}], r[#{PCh}]);
+		memory.write(--rp[#{SP.p}], r[#{PCl}]);
+		r[#{PCh}] = hi; r[#{PCl}] = lo;
 		cycle += 17;
 	} else {
-		rp[PC] += 3;
+		rp[#{PC.p}] += 3;
 		cycle += 11;
 	}
 """
 
 CALL_NNNN = (cond) -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
-	rp[PC]++;
-	memory.write(--rp[SP], r[PCh]);
-	memory.write(--rp[SP], r[PCl]);
-	r[PCh] = hi; r[PCl] = lo;
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
+	rp[#{PC.p}]++;
+	memory.write(--rp[#{SP.p}], r[#{PCh}]);
+	memory.write(--rp[#{SP.p}], r[#{PCl}]);
+	r[#{PCh}] = hi; r[#{PCl}] = lo;
 	cycle += 17;
 """
 
 CMA = () -> """
-	r[A] = ~r[A];
-	rp[PC]++;
+	r[#{A}] = ~r[#{A}];
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 CMC = () -> """
-	r[F] ^= (r[F] & Fcy);
-	rp[PC]++;
+	r[#{F}] ^= (r[#{F}] & Fcy);
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 CMP_M = () ->
 	"""
-		result = (r[A] - memory.read(rp[HL])) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		rp[PC]++;
+		result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
+		r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+		rp[#{PC.p}]++;
 		cycle += 7;
 	"""
 
 CMP_R = (r) ->
 	if r == A
 		"""
-			r[F] = szpTable[0];
-			rp[PC]++;
+			r[#{F}] = szpTable[0];
+			rp[#{PC.p}]++;
 			cycle += 4;
 		"""
 	else
 		"""
-			result = (r[A] - r[#{r}]) & 0xff;
-			r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-			rp[PC]++;
+			result = (r[#{A}] - r[#{r}]) & 0xff;
+			r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+			rp[#{PC.p}]++;
 			cycle += 4;
 		"""
 
 CPI_NN = () -> """
-	result = (r[A] - memory.read(++rp[PC])) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	rp[PC]++;
+	result = (r[#{A}] - memory.read(++rp[#{PC.p}])) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 DAA = () -> """
 	var newF = 0;
-	if (((r[A] & 0x0f) > 0x09) || (r[F] & Fac)) {
+	if (((r[#{A}] & 0x0f) > 0x09) || (r[#{F}] & Fac)) {
 		/* add 6 to A; set AC if this causes overflow from bit 3 (i.e. bottom four bits are >= A) */
-		newF |= ((r[A] & 0x0f) >= 0x0a) ? Fac : 0;
-		r[A] += 0x06;
+		newF |= ((r[#{A}] & 0x0f) >= 0x0a) ? Fac : 0;
+		r[#{A}] += 0x06;
 	}
-	if (((r[A] & 0xf0) > 0x90) || (r[F] & Fcy)) {
-		newF |= ((r[A] & 0xf0) >= 0xa0) ? Fcy : 0;
-		r[A] += 0x60;
+	if (((r[#{A}] & 0xf0) > 0x90) || (r[#{F}] & Fcy)) {
+		newF |= ((r[#{A}] & 0xf0) >= 0xa0) ? Fcy : 0;
+		r[#{A}] += 0x60;
 	}
-	r[F] = newF | szpTable[r[A]];
-	rp[PC]++;
+	r[#{F}] = newF | szpTable[r[#{A}]];
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 DAD_RR = (rr) -> """
-	result = rp[HL] + rp[#{rr.p}];
-	r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
-	rp[HL] = result;
-	rp[PC]++;
+	result = rp[#{HL.p}] + rp[#{rr.p}];
+	r[#{F}] = (r[#{F}] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
+	rp[#{HL.p}] = result;
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 DCR_M = () -> """
-	result = (memory.read(rp[HL]) - 1) & 0xff;
+	result = (memory.read(rp[#{HL.p}]) - 1) & 0xff;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-	r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
-	memory.write(rp[HL], result);
-	rp[PC]++;
+	r[#{F}] = (r[#{F}] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
+	memory.write(rp[#{HL.p}], result);
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 DCR_R = (r) -> """
 	r[#{r}]--;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) == 0x0f ? Fac : 0);
-	rp[PC]++;
+	r[#{F}] = (r[#{F}] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) == 0x0f ? Fac : 0);
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 DCX_RR = (rr) -> """
 	rp[#{rr.p}]--;
-	rp[PC]++;
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 DI = () -> """
 	interruptsEnabled = false;
-	rp[PC] += 1;
+	rp[#{PC.p}] += 1;
 	cycle += 4;
 """
 
 EI = () -> """
 	interruptsEnabled = true;
-	rp[PC] += 1;
+	rp[#{PC.p}] += 1;
 	cycle += 4;
 """
 
 IN_NN = () -> """
-	r[A] = io.read(memory.read(++rp[PC]));
-	rp[PC]++;
+	r[#{A}] = io.read(memory.read(++rp[#{PC.p}]));
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 INX_RR = (rr) -> """
 	rp[#{rr.p}]++;
-	rp[PC]++;
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 INR_M = () -> """
-	result = (memory.read(rp[HL]) + 1) & 0xff;
+	result = (memory.read(rp[#{HL.p}]) + 1) & 0xff;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-	r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
-	memory.write(rp[HL], result);
-	rp[PC]++;
+	r[#{F}] = (r[#{F}] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
+	memory.write(rp[#{HL.p}], result);
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 INR_R = (r) -> """
 	r[#{r}]++;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
-	rp[PC]++;
+	r[#{F}] = (r[#{F}] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 JMP_C = (cond) -> """
 	if (#{cond}) {
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		r[PCh] = hi; r[PCl] = lo;
+		lo = memory.read(++rp[#{PC.p}]);
+		hi = memory.read(++rp[#{PC.p}]);
+		r[#{PCh}] = hi; r[#{PCl}] = lo;
 	} else {
-		rp[PC] += 3;
+		rp[#{PC.p}] += 3;
 	}
 	cycle += 10;
 """
 
 JMP_NNNN = () -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
-	r[PCh] = hi; r[PCl] = lo;
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
+	r[#{PCh}] = hi; r[#{PCl}] = lo;
 	cycle += 10;
 """
 
 LDA_NNNN = () -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
-	r[A] = memory.read((hi << 8) | lo);
-	rp[PC]++;
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
+	r[#{A}] = memory.read((hi << 8) | lo);
+	rp[#{PC.p}]++;
 	cycle += 13;
 """
 
 LDAX_RR = (rr) -> """
-	r[A] = memory.read(rp[#{rr.p}]);
-	rp[PC]++;
+	r[#{A}] = memory.read(rp[#{rr.p}]);
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 LHLD_NNNN = () -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
 	result = (hi << 8) | lo;
-	r[L] = memory.read(result);
-	r[H] = memory.read((result + 1) & 0xffff);
-	rp[PC]++;
+	r[#{L}] = memory.read(result);
+	r[#{H}] = memory.read((result + 1) & 0xffff);
+	rp[#{PC.p}]++;
 	cycle += 16;
 """
 
 LXI_RR_NNNN = (rr) -> """
-	r[#{rr.l}] = memory.read(++rp[PC]);
-	r[#{rr.h}] = memory.read(++rp[PC]);
-	rp[PC]++;
+	r[#{rr.l}] = memory.read(++rp[#{PC.p}]);
+	r[#{rr.h}] = memory.read(++rp[#{PC.p}]);
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 MOV_M_R = (r) -> """
-	memory.write(rp[HL], r[#{r}]);
-	rp[PC]++;
+	memory.write(rp[#{HL.p}], r[#{r}]);
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 MOV_R_M = (r) -> """
-	r[#{r}] = memory.read(rp[HL]);
-	rp[PC]++; cycle += 7;
+	r[#{r}] = memory.read(rp[#{HL.p}]);
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 MOV_R_R = (r1, r2) ->
 	if r1 == r2
 		"""
-			rp[PC]++; cycle += 5;
+			rp[#{PC.p}]++; cycle += 5;
 		"""
 	else
 		"""
 			r[#{r1}] = r[#{r2}];
-			rp[PC]++; cycle += 5;
+			rp[#{PC.p}]++; cycle += 5;
 		"""
 
 MVI_M_NN = () -> """
-	memory.write(rp[HL], memory.read(++rp[PC]));
-	rp[PC]++;
+	memory.write(rp[#{HL.p}], memory.read(++rp[#{PC.p}]));
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 MVI_R_NN = (r) -> """
-	r[#{r}] = memory.read(++rp[PC]);
-	rp[PC]++;
+	r[#{r}] = memory.read(++rp[#{PC.p}]);
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 NOP = () -> """
-	rp[PC]++;
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 ORA_M = () -> """
-	r[A] |= memory.read(rp[HL]); r[F] = szpTable[r[A]];
-	rp[PC]++; cycle += 7;
+	r[#{A}] |= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 ORA_R = (r) ->
 	if r == A
 		"""
-			r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 	else
 		"""
-			r[A] |= r[B]; r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{A}] |= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 
 ORI_NN = () -> """
-	r[A] |= memory.read(++rp[PC]);
-	r[F] = szpTable[r[A]];
-	rp[PC]++;
+	r[#{A}] |= memory.read(++rp[#{PC.p}]);
+	r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 OUT_NN = () -> """
-	io.write(memory.read(++rp[PC]), r[A]);
-	rp[PC]++;
+	io.write(memory.read(++rp[#{PC.p}]), r[#{A}]);
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 PCHL = () -> """
-	rp[PC] = rp[HL];
+	rp[#{PC.p}] = rp[#{HL.p}];
 	cycle += 5;
 """
 
 POP_RR = (rr) -> """
-	r[#{rr.l}] = memory.read(rp[SP]++);
-	r[#{rr.h}] = memory.read(rp[SP]++);
-	rp[PC]++;
+	r[#{rr.l}] = memory.read(rp[#{SP.p}]++);
+	r[#{rr.h}] = memory.read(rp[#{SP.p}]++);
+	rp[#{PC.p}]++;
 	cycle += 10;
 """
 
 PUSH_RR = (rr) -> """
-	memory.write(--rp[SP], r[#{rr.h}]);
-	memory.write(--rp[SP], r[#{rr.l}]);
-	rp[PC]++;
+	memory.write(--rp[#{SP.p}], r[#{rr.h}]);
+	memory.write(--rp[#{SP.p}], r[#{rr.l}]);
+	rp[#{PC.p}]++;
 	cycle += 11;
 """
 
 RAL = () -> """
-	result = (r[A] << 1) | (r[F] & Fcy ? 1 : 0);
+	result = (r[#{A}] << 1) | (r[#{F}] & Fcy ? 1 : 0);
 	/* copy top bit of A to carry flag */
-	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-	r[A] = result;
-	rp[PC]++;
+	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
+	r[#{A}] = result;
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 RAR = () -> """
-	result = (r[A] >> 1) | (r[F] & Fcy ? 0x80 : 0);
+	result = (r[#{A}] >> 1) | (r[#{F}] & Fcy ? 0x80 : 0);
 	/* copy bottom bit of A to carry flag */
-	r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-	r[A] = result;
-	rp[PC]++;
+	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
+	r[#{A}] = result;
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 RET = () -> """
-	r[PCl] = memory.read(rp[SP]++);
-	r[PCh] = memory.read(rp[SP]++);
+	r[#{PCl}] = memory.read(rp[#{SP.p}]++);
+	r[#{PCh}] = memory.read(rp[#{SP.p}]++);
 	cycle += 10;
 """
 
 RET_C = (cond) -> """
 	if (#{cond}) {
-		r[PCl] = memory.read(rp[SP]++);
-		r[PCh] = memory.read(rp[SP]++);
+		r[#{PCl}] = memory.read(rp[#{SP.p}]++);
+		r[#{PCh}] = memory.read(rp[#{SP.p}]++);
 		cycle += 11;
 	} else {
-		rp[PC]++;
+		rp[#{PC.p}]++;
 		cycle += 5;
 	}
 """
 
 RLC = () -> """
 	/* copy top bit of A to carry flag */
-	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-	r[A] = (r[A] << 1) | ((r[A] & 0x80) >> 7);
-	rp[PC]++;
+	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
+	r[#{A}] = (r[#{A}] << 1) | ((r[#{A}] & 0x80) >> 7);
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 RRC = () -> """
 	/* copy bottom bit of A to carry flag */
-	r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-	r[A] = (r[A] >> 1) | ((r[A] & 0x01) << 7);
-	rp[PC]++;
+	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | Fcy) : (r[#{F}] & ~Fcy);
+	r[#{A}] = (r[#{A}] >> 1) | ((r[#{A}] & 0x01) << 7);
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 RST = (addr) -> """
-	rp[PC]++;
-	memory.write(--rp[SP], r[PCh]);
-	memory.write(--rp[SP], r[PCl]);
-	rp[PC] = #{addr};
+	rp[#{PC.p}]++;
+	memory.write(--rp[#{SP.p}], r[#{PCh}]);
+	memory.write(--rp[#{SP.p}], r[#{PCl}]);
+	rp[#{PC.p}] = #{addr};
 	cycle += 11;
 """
 
 SBB_M = () -> """
-	result = (r[A] - memory.read(rp[HL]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 7;
+	result = (r[#{A}] - memory.read(rp[#{HL.p}]) - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 SBB_R = (r) -> """
-	result = (r[A] - r[#{r}] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 4;
+	result = (r[#{A}] - r[#{r}] - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 4;
 """
 
 SBI_NN = () -> """
-	result = (r[A] - memory.read(++rp[PC]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++;
+	result = (r[#{A}] - memory.read(++rp[#{PC.p}]) - ((r[#{F}] & Fcy) ? 1 : 0)) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 SHLD_NNNN = () -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
 	result = (hi << 8) | lo;
-	memory.write(result, r[L]);
-	memory.write((result + 1) & 0xffff, r[H]);
-	rp[PC]++;
+	memory.write(result, r[#{L}]);
+	memory.write((result + 1) & 0xffff, r[#{H}]);
+	rp[#{PC.p}]++;
 	cycle += 16;
 """
 
 SPHL = () -> """
-	rp[SP] = rp[HL];
-	rp[PC]++;
+	rp[#{SP.p}] = rp[#{HL.p}];
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 STA_NNNN = () -> """
-	lo = memory.read(++rp[PC]);
-	hi = memory.read(++rp[PC]);
-	memory.write((hi << 8) | lo, r[A]);
-	rp[PC]++;
+	lo = memory.read(++rp[#{PC.p}]);
+	hi = memory.read(++rp[#{PC.p}]);
+	memory.write((hi << 8) | lo, r[#{A}]);
+	rp[#{PC.p}]++;
 	cycle += 13;
 """
 
 STAX_RR = (rr) -> """
-	memory.write(rp[#{rr.p}], r[A]);
-	rp[PC]++;
+	memory.write(rp[#{rr.p}], r[#{A}]);
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 STC = () -> """
-	r[F] |= Fcy;
-	rp[PC]++;
+	r[#{F}] |= Fcy;
+	rp[#{PC.p}]++;
 	cycle += 4;
 """
 
 SUB_M = () -> """
-	result = (r[A] - memory.read(rp[HL])) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 7;
+	result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 SUB_R = (r) -> """
-	result = (r[A] - r[#{r}]) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++; cycle += 4;
+	result = (r[#{A}] - r[#{r}]) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++; cycle += 4;
 """
 
 SUI_NN = () -> """
-	result = (r[A] - memory.read(++rp[PC])) & 0xff;
-	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-	r[A] = result;
-	rp[PC]++;
+	result = (r[#{A}] - memory.read(++rp[#{PC.p}])) & 0xff;
+	r[#{F}] = szpTable[result] | (result > r[#{A}] ? Fcy : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? Fac : 0);
+	r[#{A}] = result;
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 XCHG = () -> """
-	result = rp[HL];
-	rp[HL] = rp[DE];
-	rp[DE] = result;
-	rp[PC]++;
+	result = rp[#{HL.p}];
+	rp[#{HL.p}] = rp[#{DE.p}];
+	rp[#{DE.p}] = result;
+	rp[#{PC.p}]++;
 	cycle += 5;
 """
 
 XRA_M = () -> """
-	r[A] ^= memory.read(rp[HL]); r[F] = szpTable[r[A]];
-	rp[PC]++; cycle += 7;
+	r[#{A}] ^= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++; cycle += 7;
 """
 
 XRA_R = (r) ->
 	if r == A
 		"""
-			r[A] = 0; r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{A}] = 0; r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 	else
 		"""
-			r[A] ^= r[#{r}]; r[F] = szpTable[r[A]];
-			rp[PC]++; cycle += 4;
+			r[#{A}] ^= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
+			rp[#{PC.p}]++; cycle += 4;
 		"""
 
 XRI_NN = () -> """
-	r[A] ^= memory.read(++rp[PC]);
-	r[F] = szpTable[r[A]];
-	rp[PC]++;
+	r[#{A}] ^= memory.read(++rp[#{PC.p}]);
+	r[#{F}] = szpTable[r[#{A}]];
+	rp[#{PC.p}]++;
 	cycle += 7;
 """
 
 XTHL = () -> """
-	lo = memory.read(rp[SP]);
-	hi = memory.read(rp[SP] + 1);
-	memory.write(rp[SP], r[L]);
-	memory.write(rp[SP] + 1, r[H]);
-	r[L] = lo; r[H] = hi;
-	rp[PC]++;
+	lo = memory.read(rp[#{SP.p}]);
+	hi = memory.read(rp[#{SP.p}] + 1);
+	memory.write(rp[#{SP.p}], r[#{L}]);
+	memory.write(rp[#{SP.p}] + 1, r[#{H}]);
+	r[#{L}] = lo; r[#{H}] = hi;
+	rp[#{PC.p}]++;
 	cycle += 18;
 """
 
@@ -843,26 +860,6 @@ define8080JS = """
 window.Processor8080 = function(memory, io) {
 	var self = {};
 
-	var endianTestBuffer = new ArrayBuffer(2);
-	var endianTestUint16 = new Uint16Array(endianTestBuffer);
-	var endianTestUint8 = new Uint8Array(endianTestBuffer);
-
-	endianTestUint16[0] = 0x0100;
-	var isBigEndian = (endianTestUint8[0] == 0x01);
-
-	var A, F, B, C, D, E, H, L, SPh, SPl, PCh, PCl;
-
-	var AF = 0; var BC = 1; var DE = 2; var HL=3;
-	var SP = 4; var PC = 5;
-
-	if (isBigEndian) {
-		A = 0; F = 1; B = 2; C = 3; D = 4; E = 5; H = 6; L = 7;
-		SPh = 8; SPl = 9; PCh = 10; PCl = 11;
-	} else {
-		A = 1; F = 0; B = 3; C = 2; D = 5; E = 4; H = 7; L = 6;
-		SPh = 9; SPl = 8; PCh = 11; PCl = 10;
-	}
-
 	var registerBuffer = new ArrayBuffer(12);
 	/* Expose registerBuffer as both register pairs and individual registers */
 	var rp = new Uint16Array(registerBuffer);
@@ -900,9 +897,9 @@ window.Processor8080 = function(memory, io) {
 			if (interruptPending) {
 				opcode = interruptOpcode;
 				interruptPending = false;
-				rp[PC]--; /* compensate for PC being incremented in the execution of a regular instruction, which shouldn't happen here */
+				rp[#{PC.p}]--; /* compensate for PC being incremented in the execution of a regular instruction, which shouldn't happen here */
 			} else {
-				opcode = memory.read(rp[PC]);
+				opcode = memory.read(rp[#{PC.p}]);
 			}
 
 			#{opcodeSwitch(OPCODE_RUN_STRINGS)}
@@ -920,7 +917,7 @@ window.Processor8080 = function(memory, io) {
 	};
 
 	self.logState = function(intCount) {
-		console.log(intCount + ': ' + rp[AF].toString(16) + ' ' + rp[BC].toString(16) + ' ' + rp[DE].toString(16) + ' ' + rp[HL].toString(16) + ' ' + rp[PC].toString(16) + ' ' + rp[SP].toString(16) + ' at cycle ' + cycle);
+		console.log(intCount + ': ' + rp[#{AF.p}].toString(16) + ' ' + rp[#{BC.p}].toString(16) + ' ' + rp[#{DE.p}].toString(16) + ' ' + rp[#{HL.p}].toString(16) + ' ' + rp[#{PC.p}].toString(16) + ' ' + rp[#{SP.p}].toString(16) + ' at cycle ' + cycle);
 	};
 
 	return self;
