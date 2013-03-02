@@ -63,6 +63,21 @@ ANA_R = (r) ->
 			rp[PC]++; cycle += 4;
 		"""
 
+CALL_C = (cond) -> """
+	if (#{cond}) {
+		lo = memory.read(++rp[PC]);
+		hi = memory.read(++rp[PC]);
+		rp[PC]++;
+		memory.write(--rp[SP], r[PCh]);
+		memory.write(--rp[SP], r[PCl]);
+		r[PCh] = hi; r[PCl] = lo;
+		cycle += 17;
+	} else {
+		rp[PC] += 3;
+		cycle += 11;
+	}
+"""
+
 CMA = () -> """
 	r[A] = ~r[A];
 	rp[PC]++;
@@ -166,6 +181,17 @@ INR_R = (r) -> """
 	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
 	rp[PC]++;
 	cycle += 5;
+"""
+
+JMP_C = (cond) -> """
+	if (#{cond}) {
+		lo = memory.read(++rp[PC]);
+		hi = memory.read(++rp[PC]);
+		r[PCh] = hi; r[PCl] = lo;
+	} else {
+		rp[PC] += 3;
+	}
+	cycle += 10;
 """
 
 LDA_NNNN = () -> """
@@ -586,18 +612,7 @@ OPCODE_RUN_STRINGS = {
 	0xbf: CMP_R(A)           # CMP A
 	0xc0: RET_C(condNZ)      # RNZ
 	0xc1: POP_RR(BC)         # POP BC
-	# JNZ nnnn
-	0xc2: """
-		if (r[F] & Fz) {
-			/* Z is set, so stay */
-			rp[PC] += 3;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		}
-		cycle += 10;
-	"""
+	0xc2: JMP_C(condNZ)      # JNZ nnnn
 	# JMP nnnn
 	0xc3: """
 		lo = memory.read(++rp[PC]);
@@ -605,22 +620,7 @@ OPCODE_RUN_STRINGS = {
 		r[PCh] = hi; r[PCl] = lo;
 		cycle += 10;
 	"""
-	# CNZ nnnn
-	0xc4: """
-		if (r[F] & Fz) {
-			/* Z is set, so stay */
-			rp[PC] += 3;
-			cycle += 11;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		}
-	"""
+	0xc4: CALL_C(condNZ)     # CNZ nnnn
 	0xc5: PUSH_RR(BC)        # PUSH BC
 	# ADI nn
 	0xc6: """
@@ -631,41 +631,15 @@ OPCODE_RUN_STRINGS = {
 		cycle += 7;
 	"""
 	0xc7: RST(0x0000)        # RST 00
-	0xc8: RET_C(condZ)      # RZ
+	0xc8: RET_C(condZ)       # RZ
 	# RET
 	0xc9: """
 		r[PCl] = memory.read(rp[SP]++);
 		r[PCh] = memory.read(rp[SP]++);
 		cycle += 10;
 	"""
-	# JZ nnnn
-	0xca: """
-		if (r[F] & Fz) {
-			/* Z is set, so jump */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		} else {
-			rp[PC] += 3;
-		}
-		cycle += 10;
-	"""
-	# CZ nnnn
-	0xcc: """
-		if (r[F] & Fz) {
-			/* Z is set, so call */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		} else {
-			rp[PC] += 3;
-			cycle += 11;
-		}
-	"""
+	0xca: JMP_C(condZ)       # JZ nnnn
+	0xcc: CALL_C(condZ)      # CZ nnnn
 	# CALL nnnn
 	0xcd: """
 		lo = memory.read(++rp[PC]);
@@ -681,45 +655,19 @@ OPCODE_RUN_STRINGS = {
 		result = (r[A] + memory.read(++rp[PC]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
 		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
 		r[A] = result;
-		rp[PC]++; cycle += 7; break;
+		rp[PC]++; cycle += 7;
 	"""
 	0xcf: RST(0x0008)        # RST 08
 	0xd0: RET_C(condNC)      # RNC
 	0xd1: POP_RR(DE)         # POP DE
-	# JNC nnnn
-	0xd2: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so stay */
-			rp[PC] += 3;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		}
-		cycle += 10;
-	"""
+	0xd2: JMP_C(condNC)      # JNC nnnn
 	# OUT nn
 	0xd3: """
 		io.write(memory.read(++rp[PC]), r[A]);
 		rp[PC]++;
 		cycle += 10;
 	"""
-	# CNC nnnn
-	0xd4: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so stay */
-			rp[PC] += 3;
-			cycle += 11;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		}
-	"""
+	0xd4: CALL_C(condNC)     # CNC nnnn
 	0xd5: PUSH_RR(DE)        # PUSH DE
 	# SUI nn
 	0xd6: """
@@ -730,41 +678,15 @@ OPCODE_RUN_STRINGS = {
 		cycle += 7;
 	"""
 	0xd7: RST(0x0010)        # RST 10
-	0xd8: RET_C(condC)      # RC
-	# JC nnnn
-	0xda: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so jump */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		} else {
-			rp[PC] += 3;
-		}
-		cycle += 10;
-	"""
+	0xd8: RET_C(condC)       # RC
+	0xda: JMP_C(condC)       # JC nnnn
 	# IN nn
 	0xdb: """
 		r[A] = io.read(memory.read(++rp[PC]));
 		rp[PC]++;
 		cycle += 10;
 	"""
-	# CC nnnn
-	0xdc: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so call */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		} else {
-			rp[PC] += 3;
-			cycle += 11;
-		}
-	"""
+	0xdc: CALL_C(condC)      # CC nnnn
 	# SBI nn
 	0xde: """
 		result = (r[A] - memory.read(++rp[PC]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
@@ -777,17 +699,7 @@ OPCODE_RUN_STRINGS = {
 	0xe0: RET_C(condPO)      # RPO
 	0xe1: POP_RR(HL)         # POP HL
 	# JPO nnnn
-	0xe2: """
-		if (r[F] & Fp) {
-			/* P is set, so stay */
-			rp[PC] += 3;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		}
-		cycle += 10;
-	"""
+	0xe2: JMP_C(condPO)      # JPO nnnn
 	# XTHL
 	0xe3: """
 		lo = memory.read(rp[SP]);
@@ -798,22 +710,7 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 18;
 	"""
-	# CPO nnnn
-	0xe4: """
-		if (r[F] & Fp) {
-			/* P is set, so stay */
-			rp[PC] += 3;
-			cycle += 11;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		}
-	"""
+	0xe4: CALL_C(condPO)     # CPO nnnn
 	0xe5: PUSH_RR(HL)        # PUSH HL
 	# ANI nn
 	0xe6: """
@@ -829,18 +726,7 @@ OPCODE_RUN_STRINGS = {
 		rp[PC] = rp[HL];
 		cycle += 5;
 	"""
-	# JPE nnnn
-	0xea: """
-		if (r[F] & Fp) {
-			/* P is set, so jump */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		} else {
-			rp[PC] += 3;
-		}
-		cycle += 10;
-	"""
+	0xea: JMP_C(condPE)      # JPE nnnn
 	# XCHG
 	0xeb: """
 		result = rp[HL];
@@ -849,22 +735,7 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 5;
 	"""
-	# CPE nnnn
-	0xec: """
-		if (r[F] & Fp) {
-			/* P is set, so call */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		} else {
-			rp[PC] += 3;
-			cycle += 11;
-		}
-	"""
+	0xec: CALL_C(condPE)     # CPE nnnn
 	# XRI nn
 	0xee: """
 		r[A] ^= memory.read(++rp[PC]);
@@ -873,42 +744,16 @@ OPCODE_RUN_STRINGS = {
 		cycle += 7;
 	"""
 	0xef: RST(0x0028)        # RST 28
-	0xf0: RET_C(condP)      # RP
+	0xf0: RET_C(condP)       # RP
 	0xf1: POP_RR(AF)         # POP PSW
-	# JP nnnn
-	0xf2: """
-		if (r[F] & Fs) {
-			/* S is set, so stay */
-			rp[PC] += 3;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		}
-		cycle += 10;
-	"""
+	0xf2: JMP_C(condP)       # JP nnnn
 	# DI
 	0xf3: """
 		interruptsEnabled = false;
 		rp[PC] += 1;
 		cycle += 4;
 	"""
-	# CP nnnn
-	0xf4: """
-		if (r[F] & Fs) {
-			/* S is set, so stay */
-			rp[PC] += 3;
-			cycle += 11;
-		} else {
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		}
-	"""
+	0xf4: CALL_C(condP)      # CP nnnn
 	0xf5: PUSH_RR(AF)        # PUSH PSW
 	# ORI nn
 	0xf6: """
@@ -925,40 +770,14 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 5;
 	"""
-	# JC nnnn
-	0xfa: """
-		if (r[F] & Fs) {
-			/* S is set, so jump */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			r[PCh] = hi; r[PCl] = lo;
-		} else {
-			rp[PC] += 3;
-		}
-		cycle += 10;
-	"""
+	0xfa: JMP_C(condM)       # JM nnnn
 	# EI
 	0xfb: """
 		interruptsEnabled = true;
 		rp[PC] += 1;
 		cycle += 4;
 	"""
-	# CM nnnn
-	0xfc: """
-		if (r[F] & Fs) {
-			/* S is set, so call */
-			lo = memory.read(++rp[PC]);
-			hi = memory.read(++rp[PC]);
-			rp[PC]++;
-			memory.write(--rp[SP], r[PCh]);
-			memory.write(--rp[SP], r[PCl]);
-			r[PCh] = hi; r[PCl] = lo;
-			cycle += 17;
-		} else {
-			rp[PC] += 3;
-			cycle += 11;
-		}
-	"""
+	0xfc: CALL_C(condM)      # CP nnnn
 	# CPI nn
 	0xfe: """
 		result = (r[A] - memory.read(++rp[PC])) & 0xff;
