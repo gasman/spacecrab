@@ -6,6 +6,16 @@ SP = {'p': 'SP', 'h': 'SPh', 'l': 'SPl'}
 AF = {'p': 'AF', 'h': 'A', 'l': 'F'}
 
 A = 'A'; B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
+
+condZ = 'r[F] & Fz'
+condNZ = '!(r[F] & Fz)'
+condC = 'r[F] & Fcy'
+condNC = '!(r[F] & Fcy)'
+condPE = 'r[F] & Fp'
+condPO = '!(r[F] & Fp)'
+condM = 'r[F] & Fs'
+condP = '!(r[F] & Fs)'
+
 # Constructors for runstrings for each class of operations
 
 ADC_M = () -> """
@@ -277,6 +287,17 @@ RAR = () -> """
 	cycle += 4;
 """
 
+RET_C = (cond) -> """
+	if (#{cond}) {
+		r[PCl] = memory.read(rp[SP]++);
+		r[PCh] = memory.read(rp[SP]++);
+		cycle += 11;
+	} else {
+		rp[PC]++;
+		cycle += 5;
+	}
+"""
+
 RLC = () -> """
 	/* copy top bit of A to carry flag */
 	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
@@ -291,6 +312,14 @@ RRC = () -> """
 	r[A] = (r[A] >> 1) | ((r[A] & 0x01) << 7);
 	rp[PC]++;
 	cycle += 4;
+"""
+
+RST = (addr) -> """
+	rp[PC]++;
+	memory.write(--rp[SP], r[PCh]);
+	memory.write(--rp[SP], r[PCl]);
+	rp[PC] = #{addr};
+	cycle += 11;
 """
 
 SBB_M = () -> """
@@ -555,18 +584,7 @@ OPCODE_RUN_STRINGS = {
 	0xbd: CMP_R(L)           # CMP L
 	0xbe: CMP_M()            # CMP M
 	0xbf: CMP_R(A)           # CMP A
-	# RNZ
-	0xc0: """
-		if (r[F] & Fz) {
-			/* Z is set, so stay */
-			rp[PC]++;
-			cycle += 5;
-		} else {
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		}
-	"""
+	0xc0: RET_C(condNZ)      # RNZ
 	0xc1: POP_RR(BC)         # POP BC
 	# JNZ nnnn
 	0xc2: """
@@ -612,26 +630,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 00
-	0xc7: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0000;
-		cycle += 11;
-	"""
-	# RZ
-	0xc8: """
-		if (r[F] & Fz) {
-			/* Z is set, so return */
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		} else {
-			rp[PC]++;
-			cycle += 5;
-		}
-	"""
+	0xc7: RST(0x0000)        # RST 00
+	0xc8: RET_C(condZ)      # RZ
 	# RET
 	0xc9: """
 		r[PCl] = memory.read(rp[SP]++);
@@ -683,26 +683,8 @@ OPCODE_RUN_STRINGS = {
 		r[A] = result;
 		rp[PC]++; cycle += 7; break;
 	"""
-	# RST 08
-	0xcf: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0008;
-		cycle += 11;
-	"""
-	# RNC
-	0xd0: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so stay */
-			rp[PC]++;
-			cycle += 5;
-		} else {
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		}
-	"""
+	0xcf: RST(0x0008)        # RST 08
+	0xd0: RET_C(condNC)      # RNC
 	0xd1: POP_RR(DE)         # POP DE
 	# JNC nnnn
 	0xd2: """
@@ -747,26 +729,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 10
-	0xd7: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0010;
-		cycle += 11;
-	"""
-	# RC
-	0xd8: """
-		if (r[F] & Fcy) {
-			/* Cy is set, so return */
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		} else {
-			rp[PC]++;
-			cycle += 5;
-		}
-	"""
+	0xd7: RST(0x0010)        # RST 10
+	0xd8: RET_C(condC)      # RC
 	# JC nnnn
 	0xda: """
 		if (r[F] & Fcy) {
@@ -809,26 +773,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 18
-	0xdf: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0018;
-		cycle += 11;
-	"""
-	# RPO
-	0xe0: """
-		if (r[F] & Fp) {
-			/* P is set, so stay */
-			rp[PC]++;
-			cycle += 5;
-		} else {
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		}
-	"""
+	0xdf: RST(0x0018)        # RST 18
+	0xe0: RET_C(condPO)      # RPO
 	0xe1: POP_RR(HL)         # POP HL
 	# JPO nnnn
 	0xe2: """
@@ -876,26 +822,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 20
-	0xe7: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0020;
-		cycle += 11;
-	"""
-	# RPE
-	0xe8: """
-		if (r[F] & Fp) {
-			/* P is set, so return */
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		} else {
-			rp[PC]++;
-			cycle += 5;
-		}
-	"""
+	0xe7: RST(0x0020)        # RST 20
+	0xe8: RET_C(condPE)      # RPE
 	# PCHL
 	0xe9: """
 		rp[PC] = rp[HL];
@@ -944,26 +872,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 28
-	0xef: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0028;
-		cycle += 11;
-	"""
-	# RP
-	0xf0: """
-		if (r[F] & Fs) {
-			/* S is set, so stay */
-			rp[PC]++;
-			cycle += 5;
-		} else {
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		}
-	"""
+	0xef: RST(0x0028)        # RST 28
+	0xf0: RET_C(condP)      # RP
 	0xf1: POP_RR(AF)         # POP PSW
 	# JP nnnn
 	0xf2: """
@@ -1007,26 +917,8 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 30
-	0xf7: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0030;
-		cycle += 11;
-	"""
-	# RM
-	0xf8: """
-		if (r[F] & Fs) {
-			/* S is set, so return */
-			r[PCl] = memory.read(rp[SP]++);
-			r[PCh] = memory.read(rp[SP]++);
-			cycle += 11;
-		} else {
-			rp[PC]++;
-			cycle += 5;
-		}
-	"""
+	0xf7: RST(0x0030)        # RST 30
+	0xf8: RET_C(condM)      # RM
 	# SPHL
 	0xf9: """
 		rp[SP] = rp[HL];
@@ -1074,14 +966,7 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++;
 		cycle += 7;
 	"""
-	# RST 38
-	0xff: """
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		rp[PC] = 0x0038;
-		cycle += 11;
-	"""
+	0xff: RST(0x0038)        # RST 38
 }
 
 # transform an opcodes-to-runstrings dictionary into a massive switch statement
