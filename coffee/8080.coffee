@@ -2,8 +2,9 @@
 BC = {'p': 'BC', 'h': 'B', 'l': 'C'}
 DE = {'p': 'DE', 'h': 'D', 'l': 'E'}
 HL = {'p': 'HL', 'h': 'H', 'l': 'L'}
+SP = {'p': 'SP', 'h': 'SPh', 'l': 'SPl'}
 
-B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
+A = 'A'; B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
 # Constructors for runstrings for each class of operations
 
 CMA = () -> """
@@ -87,6 +88,17 @@ LXI_RR_NNNN = (rr) -> """
 	cycle += 10;
 """
 
+MOV_R_R = (r1, r2) ->
+	if r1 == r2
+		"""
+			rp[PC]++; cycle += 5;
+		"""
+	else
+		"""
+			r[#{r1}] = r[#{r2}];
+			rp[PC]++; cycle += 5;
+		"""
+
 MVI_R_NN = (r) -> """
 	r[#{r}] = memory.read(++rp[PC]);
 	rp[PC]++;
@@ -140,6 +152,14 @@ SHLD_NNNN = () -> """
 	memory.write((result + 1) & 0xffff, r[H]);
 	rp[PC]++;
 	cycle += 16;
+"""
+
+STA_NNNN = () -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	memory.write((hi << 8) | lo, r[A]);
+	rp[PC]++;
+	cycle += 13;
 """
 
 STAX_RR = (rr) -> """
@@ -237,26 +257,11 @@ OPCODE_RUN_STRINGS = {
 	# CMA
 	0x2f: CMA()
 	# LXI SP,nnnn
-	0x31: """
-		r[SPl] = memory.read(++rp[PC]);
-		r[SPh] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x31: LXI_RR_NNNN(SP)
 	# STA nnnn
-	0x32: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		memory.write((hi << 8) | lo, r[A]);
-		rp[PC]++;
-		cycle += 13;
-	"""
+	0x32: STA_NNNN()
 	# INX SP
-	0x33: """
-		rp[SP]++;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x33: INX_RR(SP)
 	# INR M
 	0x34: """
 		result = (memory.read(rp[HL]) + 1) & 0xff;
@@ -288,13 +293,7 @@ OPCODE_RUN_STRINGS = {
 		cycle += 4;
 	"""
 	# DAD SP
-	0x39: """
-		result = rp[HL] + rp[SP];
-		r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
-		rp[HL] = result;
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x39: DAD_RR(SP)
 	# LDA nnnn
 	0x3a: """
 		lo = memory.read(++rp[PC]);
@@ -304,27 +303,11 @@ OPCODE_RUN_STRINGS = {
 		cycle += 13;
 	"""
 	# DCX SP
-	0x3b: """
-		rp[SP]--;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x3b: DCX_RR(SP)
 	# INR A
-	0x3c: """
-		r[A]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[A]] | ((r[A] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x3c: INR_R(A)
 	# DCR A
-	0x3d: """
-		r[A]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[A]] | ((r[A] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x3d: DCR_R(A)
 	# MVI A,nn
 	0x3e: """
 		r[A] = memory.read(++rp[PC]);
@@ -339,245 +322,119 @@ OPCODE_RUN_STRINGS = {
 
 	"""
 	# MOV B,B
-	0x40: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x40: MOV_R_R(B, B)
 	# MOV B,C
-	0x41: """
-		r[B] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x41: MOV_R_R(B, C)
 	# MOV B,D
-	0x42: """
-		r[B] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x42: MOV_R_R(B, D)
 	# MOV B,E
-	0x43: """
-		r[B] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x43: MOV_R_R(B, E)
 	# MOV B,H
-	0x44: """
-		r[B] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x44: MOV_R_R(B, H)
 	# MOV B,L
-	0x45: """
-		r[B] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x45: MOV_R_R(B, L)
 	# MOV B,M
 	0x46: """
 		r[B] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV B,A
-	0x47: """
-		r[B] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x47: MOV_R_R(B, A)
 	# MOV C,B
-	0x48: """
-		r[C] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x48: MOV_R_R(C, B)
 	# MOV C,C
-	0x49: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x49: MOV_R_R(C, C)
 	# MOV C,D
-	0x4a: """
-		r[C] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x4a: MOV_R_R(C, D)
 	# MOV C,E
-	0x4b: """
-		r[C] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x4b: MOV_R_R(C, E)
 	# MOV C,H
-	0x4c: """
-		r[C] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x4c: MOV_R_R(C, H)
 	# MOV C,L
-	0x4d: """
-		r[C] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x4d: MOV_R_R(C, L)
 	# MOV C,M
 	0x4e: """
 		r[C] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV C,A
-	0x4f: """
-		r[C] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x4f: MOV_R_R(C, A)
 	# MOV D,B
-	0x50: """
-		r[D] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x50: MOV_R_R(D, B)
 	# MOV D,C
-	0x51: """
-		r[D] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x51: MOV_R_R(D, C)
 	# MOV D,D
-	0x52: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x52: MOV_R_R(D, D)
 	# MOV D,E
-	0x53: """
-		r[D] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x53: MOV_R_R(D, E)
 	# MOV D,H
-	0x54: """
-		r[D] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x54: MOV_R_R(D, H)
 	# MOV D,L
-	0x55: """
-		r[D] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x55: MOV_R_R(D, L)
 	# MOV D,M
 	0x56: """
 		r[D] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV D,A
-	0x57: """
-		r[D] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x57: MOV_R_R(D, A)
 	# MOV E,B
-	0x58: """
-		r[E] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x58: MOV_R_R(E, B)
 	# MOV E,C
-	0x59: """
-		r[E] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x59: MOV_R_R(E, C)
 	# MOV E,D
-	0x5a: """
-		r[E] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x5a: MOV_R_R(E, D)
 	# MOV E,E
-	0x5b: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x5b: MOV_R_R(E, E)
 	# MOV E,H
-	0x5c: """
-		r[E] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x5c: MOV_R_R(E, H)
 	# MOV E,L
-	0x5d: """
-		r[E] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x5d: MOV_R_R(E, L)
 	# MOV E,M
 	0x5e: """
 		r[E] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV E,A
-	0x5f: """
-		r[E] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x5f: MOV_R_R(E, A)
 	# MOV H,B
-	0x60: """
-		r[H] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x60: MOV_R_R(H, B)
 	# MOV H,C
-	0x61: """
-		r[H] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x61: MOV_R_R(H, C)
 	# MOV H,D
-	0x62: """
-		r[H] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x62: MOV_R_R(H, D)
 	# MOV H,E
-	0x63: """
-		r[H] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x63: MOV_R_R(H, E)
 	# MOV H,H
-	0x64: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x64: MOV_R_R(H, H)
 	# MOV H,L
-	0x65: """
-		r[H] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x65: MOV_R_R(H, L)
 	# MOV H,M
 	0x66: """
 		r[H] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV H,A
-	0x67: """
-		r[H] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x67: MOV_R_R(H, A)
 	# MOV L,B
-	0x68: """
-		r[L] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x68: MOV_R_R(L, B)
 	# MOV L,C
-	0x69: """
-		r[L] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x69: MOV_R_R(L, C)
 	# MOV L,D
-	0x6a: """
-		r[L] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x6a: MOV_R_R(L, D)
 	# MOV L,E
-	0x6b: """
-		r[L] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x6b: MOV_R_R(L, E)
 	# MOV L,H
-	0x6c: """
-		r[L] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x6c: MOV_R_R(L, H)
 	# MOV L,L
-	0x6d: """
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x6d: MOV_R_R(L, L)
 	# MOV L,M
 	0x6e: """
 		r[L] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV L,A
-	0x6f: """
-		r[L] = r[A];
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x6f: MOV_R_R(L, A)
 	# MOV M,B
 	0x70: """
 		memory.write(rp[HL], r[B]);
@@ -622,45 +479,24 @@ OPCODE_RUN_STRINGS = {
 
 	"""
 	# MOV A,B
-	0x78: """
-		r[A] = r[B];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x78: MOV_R_R(A, B)
 	# MOV A,C
-	0x79: """
-		r[A] = r[C];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x79: MOV_R_R(A, C)
 	# MOV A,D
-	0x7a: """
-		r[A] = r[D];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x7a: MOV_R_R(A, D)
 	# MOV A,E
-	0x7b: """
-		r[A] = r[E];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x7b: MOV_R_R(A, E)
 	# MOV A,H
-	0x7c: """
-		r[A] = r[H];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x7c: MOV_R_R(A, H)
 	# MOV A,L
-	0x7d: """
-		r[A] = r[L];
-		rp[PC]++; cycle += 5; break;
-	"""
+	0x7d: MOV_R_R(A, L)
 	# MOV A,M
 	0x7e: """
 		r[A] = memory.read(rp[HL]);
 		rp[PC]++; cycle += 7; break;
 	"""
 	# MOV A,A
-	0x7f: """
-		rp[PC]++; cycle += 5; break;
-
-	"""
+	0x7f: MOV_R_R(A, A)
 	# ADD B
 	0x80: """
 		result = (r[A] + r[B]) & 0xff;
