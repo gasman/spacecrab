@@ -3,6 +3,7 @@ BC = {'p': 'BC', 'h': 'B', 'l': 'C'}
 DE = {'p': 'DE', 'h': 'D', 'l': 'E'}
 HL = {'p': 'HL', 'h': 'H', 'l': 'L'}
 SP = {'p': 'SP', 'h': 'SPh', 'l': 'SPl'}
+AF = {'p': 'AF', 'h': 'A', 'l': 'F'}
 
 A = 'A'; B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
 # Constructors for runstrings for each class of operations
@@ -243,6 +244,20 @@ ORA_R = (r) ->
 			r[A] |= r[B]; r[F] = szpTable[r[A]];
 			rp[PC]++; cycle += 4;
 		"""
+
+POP_RR = (rr) -> """
+	r[#{rr.l}] = memory.read(rp[SP]++);
+	r[#{rr.h}] = memory.read(rp[SP]++);
+	rp[PC]++;
+	cycle += 10;
+"""
+
+PUSH_RR = (rr) -> """
+	memory.write(--rp[SP], r[#{rr.h}]);
+	memory.write(--rp[SP], r[#{rr.l}]);
+	rp[PC]++;
+	cycle += 11;
+"""
 
 RAL = () -> """
 	result = (r[A] << 1) | (r[F] & Fcy ? 1 : 0);
@@ -552,13 +567,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 11;
 		}
 	"""
-	# POP BC
-	0xc1: """
-		r[C] = memory.read(rp[SP]++);
-		r[B] = memory.read(rp[SP]++);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xc1: POP_RR(BC)         # POP BC
 	# JNZ nnnn
 	0xc2: """
 		if (r[F] & Fz) {
@@ -594,13 +603,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 17;
 		}
 	"""
-	# PUSH BC
-	0xc5: """
-		memory.write(--rp[SP], r[B]);
-		memory.write(--rp[SP], r[C]);
-		rp[PC]++;
-		cycle += 11;
-	"""
+	0xc5: PUSH_RR(BC)        # PUSH BC
 	# ADI nn
 	0xc6: """
 		result = (r[A] + memory.read(++rp[PC])) & 0xff;
@@ -700,13 +703,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 11;
 		}
 	"""
-	# POP DE
-	0xd1: """
-		r[E] = memory.read(rp[SP]++);
-		r[D] = memory.read(rp[SP]++);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xd1: POP_RR(DE)         # POP DE
 	# JNC nnnn
 	0xd2: """
 		if (r[F] & Fcy) {
@@ -741,13 +738,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 17;
 		}
 	"""
-	# PUSH DE
-	0xd5: """
-		memory.write(--rp[SP], r[D]);
-		memory.write(--rp[SP], r[E]);
-		rp[PC]++;
-		cycle += 11;
-	"""
+	0xd5: PUSH_RR(DE)        # PUSH DE
 	# SUI nn
 	0xd6: """
 		result = (r[A] - memory.read(++rp[PC])) & 0xff;
@@ -838,13 +829,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 11;
 		}
 	"""
-	# POP HL
-	0xe1: """
-		r[L] = memory.read(rp[SP]++);
-		r[H] = memory.read(rp[SP]++);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xe1: POP_RR(HL)         # POP HL
 	# JPO nnnn
 	0xe2: """
 		if (r[F] & Fp) {
@@ -883,13 +868,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 17;
 		}
 	"""
-	# PUSH HL
-	0xe5: """
-		memory.write(--rp[SP], r[H]);
-		memory.write(--rp[SP], r[L]);
-		rp[PC]++;
-		cycle += 11;
-	"""
+	0xe5: PUSH_RR(HL)        # PUSH HL
 	# ANI nn
 	0xe6: """
 		r[A] &= memory.read(++rp[PC]);
@@ -985,13 +964,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 11;
 		}
 	"""
-	# POP PSW
-	0xf1: """
-		r[F] = memory.read(rp[SP]++);
-		r[A] = memory.read(rp[SP]++);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xf1: POP_RR(AF)         # POP PSW
 	# JP nnnn
 	0xf2: """
 		if (r[F] & Fs) {
@@ -1026,13 +999,7 @@ OPCODE_RUN_STRINGS = {
 			cycle += 17;
 		}
 	"""
-	# PUSH PSW
-	0xf5: """
-		memory.write(--rp[SP], r[A]);
-		memory.write(--rp[SP], r[F]);
-		rp[PC]++;
-		cycle += 11;
-	"""
+	0xf5: PUSH_RR(AF)        # PUSH PSW
 	# ORI nn
 	0xf6: """
 		r[A] |= memory.read(++rp[PC]);
