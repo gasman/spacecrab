@@ -13,6 +13,12 @@ CMA = () -> """
 	cycle += 4;
 """
 
+CMC = () -> """
+	r[F] ^= (r[F] & Fcy);
+	rp[PC]++;
+	cycle += 4;
+"""
+
 DAA = () -> """
 	var newF = 0;
 	if (((r[A] & 0x0f) > 0x09) || (r[F] & Fac)) {
@@ -37,6 +43,15 @@ DAD_RR = (rr) -> """
 	cycle += 10;
 """
 
+DCR_M = () -> """
+	result = (memory.read(rp[HL]) - 1) & 0xff;
+	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
+	r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
+	memory.write(rp[HL], result);
+	rp[PC]++;
+	cycle += 10;
+"""
+
 DCR_R = (r) -> """
 	r[#{r}]--;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
@@ -57,12 +72,29 @@ INX_RR = (rr) -> """
 	cycle += 5;
 """
 
+INR_M = () -> """
+	result = (memory.read(rp[HL]) + 1) & 0xff;
+	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
+	r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
+	memory.write(rp[HL], result);
+	rp[PC]++;
+	cycle += 10;
+"""
+
 INR_R = (r) -> """
 	r[#{r}]++;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
 	r[F] = (r[F] & Fcy) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : Fac);
 	rp[PC]++;
 	cycle += 5;
+"""
+
+LDA_NNNN = () -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	r[A] = memory.read((hi << 8) | lo);
+	rp[PC]++;
+	cycle += 13;
 """
 
 LDAX_RR = (rr) -> """
@@ -88,6 +120,11 @@ LXI_RR_NNNN = (rr) -> """
 	cycle += 10;
 """
 
+MOV_R_M = (r) -> """
+	r[#{r}] = memory.read(rp[HL]);
+	rp[PC]++; cycle += 7; break;
+"""
+
 MOV_R_R = (r1, r2) ->
 	if r1 == r2
 		"""
@@ -98,6 +135,12 @@ MOV_R_R = (r1, r2) ->
 			r[#{r1}] = r[#{r2}];
 			rp[PC]++; cycle += 5;
 		"""
+
+MVI_M_NN = () -> """
+	memory.write(rp[HL], memory.read(++rp[PC]));
+	rp[PC]++;
+	cycle += 10;
+"""
 
 MVI_R_NN = (r) -> """
 	r[#{r}] = memory.read(++rp[PC]);
@@ -168,273 +211,119 @@ STAX_RR = (rr) -> """
 	cycle += 7;
 """
 
+STC = () -> """
+	r[F] |= Fcy;
+	rp[PC]++;
+	cycle += 4;
+"""
+
 # A mapping from opcodes to Javascript strings that perform them
 OPCODE_RUN_STRINGS = {
-	# NOP
-	0x00: NOP()
-	# LXI BC,nnnn
-	0x01: LXI_RR_NNNN(BC)
-	# STAX BC
-	0x02: STAX_RR(BC)
-	# INX BC
-	0x03: INX_RR(BC)
-	# INR B
-	0x04: INR_R(B)
-	# DCR B
-	0x05: DCR_R(B)
-	# MVI B,nn
-	0x06: MVI_R_NN(B)
-	# RLC
-	0x07: RLC()
-	# DAD BC
-	0x09: DAD_RR(BC)
-	# LDAX BC
-	0x0a: LDAX_RR(BC)
-	# DCX BC
-	0x0b: DCX_RR(BC)
-	# INR C
-	0x0c: INR_R(C)
-	# DCR C
-	0x0d: DCR_R(C)
-	# MVI C,nn
-	0x0e: MVI_R_NN(C)
-	# RRC
-	0x0f: RRC()
-	# LXI DE,nnnn
-	0x11: LXI_RR_NNNN(DE)
-	# STAX DE
-	0x12: STAX_RR(DE)
-	# INX DE
-	0x13: INX_RR(DE)
-	# INR D
-	0x14: INR_R(D)
-	# DCR D
-	0x15: DCR_R(D)
-	# MVI D,nn
-	0x16: MVI_R_NN(D)
-	# RAL
-	0x17: RAL()
-	# DAD DE
-	0x19: DAD_RR(DE)
-	# LDAX DE
-	0x1a: LDAX_RR(DE)
-	# DCX DE
-	0x1b: DCX_RR(DE)
-	# INR E
-	0x1c: INR_R(E)
-	# DCR E
-	0x1d: DCR_R(E)
-	# MVI E,nn
-	0x1e: MVI_R_NN(E)
-	# RAR
-	0x1f: RAR()
-	# LXI HL,nnnn
-	0x21: LXI_RR_NNNN(HL)
-	# SHLD nnnn
-	0x22: SHLD_NNNN()
-	# INX HL
-	0x23: INX_RR(HL)
-	# INR H
-	0x24: INR_R(H)
-	# DCR H
-	0x25: DCR_R(H)
-	# MVI H,nn
-	0x26: MVI_R_NN(H)
-	# DAA
-	0x27: DAA()
-	# DAD HL
-	0x29: DAD_RR(HL)
-	# LHLD nnnn
-	0x2a: LHLD_NNNN()
-	# DCX HL
-	0x2b: DCX_RR(HL)
-	# INR L
-	0x2c: INR_R(L)
-	# DCR L
-	0x2d: DCR_R(L)
-	# MVI L,nn
-	0x2e: MVI_R_NN(L)
-	# CMA
-	0x2f: CMA()
-	# LXI SP,nnnn
-	0x31: LXI_RR_NNNN(SP)
-	# STA nnnn
-	0x32: STA_NNNN()
-	# INX SP
-	0x33: INX_RR(SP)
-	# INR M
-	0x34: """
-		result = (memory.read(rp[HL]) + 1) & 0xff;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) ? 0 : Fac);
-		memory.write(rp[HL], result);
-		rp[PC]++;
-		cycle += 10;
-	"""
-	# DCR M
-	0x35: """
-		result = (memory.read(rp[HL]) - 1) & 0xff;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[result] | ((result & 0x0f) == 0x0f ? Fac : 0);
-		memory.write(rp[HL], result);
-		rp[PC]++;
-		cycle += 10;
-	"""
-	# MVI M,nn
-	0x36: """
-		memory.write(rp[HL], memory.read(++rp[PC]));
-		rp[PC]++;
-		cycle += 10;
-	"""
-	# STC
-	0x37: """
-		r[F] |= Fcy;
-		rp[PC]++;
-		cycle += 4;
-	"""
-	# DAD SP
-	0x39: DAD_RR(SP)
-	# LDA nnnn
-	0x3a: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		r[A] = memory.read((hi << 8) | lo);
-		rp[PC]++;
-		cycle += 13;
-	"""
-	# DCX SP
-	0x3b: DCX_RR(SP)
-	# INR A
-	0x3c: INR_R(A)
-	# DCR A
-	0x3d: DCR_R(A)
-	# MVI A,nn
-	0x3e: """
-		r[A] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
-	# CMC
-	0x3f: """
-		r[F] ^= (r[F] & Fcy);
-		rp[PC]++;
-		cycle += 4;
-
-	"""
-	# MOV B,B
-	0x40: MOV_R_R(B, B)
-	# MOV B,C
-	0x41: MOV_R_R(B, C)
-	# MOV B,D
-	0x42: MOV_R_R(B, D)
-	# MOV B,E
-	0x43: MOV_R_R(B, E)
-	# MOV B,H
-	0x44: MOV_R_R(B, H)
-	# MOV B,L
-	0x45: MOV_R_R(B, L)
-	# MOV B,M
-	0x46: """
-		r[B] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV B,A
-	0x47: MOV_R_R(B, A)
-	# MOV C,B
-	0x48: MOV_R_R(C, B)
-	# MOV C,C
-	0x49: MOV_R_R(C, C)
-	# MOV C,D
-	0x4a: MOV_R_R(C, D)
-	# MOV C,E
-	0x4b: MOV_R_R(C, E)
-	# MOV C,H
-	0x4c: MOV_R_R(C, H)
-	# MOV C,L
-	0x4d: MOV_R_R(C, L)
-	# MOV C,M
-	0x4e: """
-		r[C] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV C,A
-	0x4f: MOV_R_R(C, A)
-	# MOV D,B
-	0x50: MOV_R_R(D, B)
-	# MOV D,C
-	0x51: MOV_R_R(D, C)
-	# MOV D,D
-	0x52: MOV_R_R(D, D)
-	# MOV D,E
-	0x53: MOV_R_R(D, E)
-	# MOV D,H
-	0x54: MOV_R_R(D, H)
-	# MOV D,L
-	0x55: MOV_R_R(D, L)
-	# MOV D,M
-	0x56: """
-		r[D] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV D,A
-	0x57: MOV_R_R(D, A)
-	# MOV E,B
-	0x58: MOV_R_R(E, B)
-	# MOV E,C
-	0x59: MOV_R_R(E, C)
-	# MOV E,D
-	0x5a: MOV_R_R(E, D)
-	# MOV E,E
-	0x5b: MOV_R_R(E, E)
-	# MOV E,H
-	0x5c: MOV_R_R(E, H)
-	# MOV E,L
-	0x5d: MOV_R_R(E, L)
-	# MOV E,M
-	0x5e: """
-		r[E] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV E,A
-	0x5f: MOV_R_R(E, A)
-	# MOV H,B
-	0x60: MOV_R_R(H, B)
-	# MOV H,C
-	0x61: MOV_R_R(H, C)
-	# MOV H,D
-	0x62: MOV_R_R(H, D)
-	# MOV H,E
-	0x63: MOV_R_R(H, E)
-	# MOV H,H
-	0x64: MOV_R_R(H, H)
-	# MOV H,L
-	0x65: MOV_R_R(H, L)
-	# MOV H,M
-	0x66: """
-		r[H] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV H,A
-	0x67: MOV_R_R(H, A)
-	# MOV L,B
-	0x68: MOV_R_R(L, B)
-	# MOV L,C
-	0x69: MOV_R_R(L, C)
-	# MOV L,D
-	0x6a: MOV_R_R(L, D)
-	# MOV L,E
-	0x6b: MOV_R_R(L, E)
-	# MOV L,H
-	0x6c: MOV_R_R(L, H)
-	# MOV L,L
-	0x6d: MOV_R_R(L, L)
-	# MOV L,M
-	0x6e: """
-		r[L] = memory.read(rp[HL]);
-		rp[PC]++; cycle += 7; break;
-	"""
-	# MOV L,A
-	0x6f: MOV_R_R(L, A)
+	0x00: NOP()              # NOP
+	0x01: LXI_RR_NNNN(BC)    # LXI BC,nnnn
+	0x02: STAX_RR(BC)        # STAX BC
+	0x03: INX_RR(BC)         # INX BC
+	0x04: INR_R(B)           # INR B
+	0x05: DCR_R(B)           # DCR B
+	0x06: MVI_R_NN(B)        # MVI B,nn
+	0x07: RLC()              # RLC
+	0x09: DAD_RR(BC)         # DAD BC
+	0x0a: LDAX_RR(BC)        # LDAX BC
+	0x0b: DCX_RR(BC)         # DCX BC
+	0x0c: INR_R(C)           # INR C
+	0x0d: DCR_R(C)           # DCR C
+	0x0e: MVI_R_NN(C)        # MVI C,nn
+	0x0f: RRC()              # RRC
+	0x11: LXI_RR_NNNN(DE)    # LXI DE,nnnn
+	0x12: STAX_RR(DE)        # STAX DE
+	0x13: INX_RR(DE)         # INX DE
+	0x14: INR_R(D)           # INR D
+	0x15: DCR_R(D)           # DCR D
+	0x16: MVI_R_NN(D)        # MVI D,nn
+	0x17: RAL()              # RAL
+	0x19: DAD_RR(DE)         # DAD DE
+	0x1a: LDAX_RR(DE)        # LDAX DE
+	0x1b: DCX_RR(DE)         # DCX DE
+	0x1c: INR_R(E)           # INR E
+	0x1d: DCR_R(E)           # DCR E
+	0x1e: MVI_R_NN(E)        # MVI E,nn
+	0x1f: RAR()              # RAR
+	0x21: LXI_RR_NNNN(HL)    # LXI HL,nnnn
+	0x22: SHLD_NNNN()        # SHLD nnnn
+	0x23: INX_RR(HL)         # INX HL
+	0x24: INR_R(H)           # INR H
+	0x25: DCR_R(H)           # DCR H
+	0x26: MVI_R_NN(H)        # MVI H,nn
+	0x27: DAA()              # DAA
+	0x29: DAD_RR(HL)         # DAD HL
+	0x2a: LHLD_NNNN()        # LHLD nnnn
+	0x2b: DCX_RR(HL)         # DCX HL
+	0x2c: INR_R(L)           # INR L
+	0x2d: DCR_R(L)           # DCR L
+	0x2e: MVI_R_NN(L)        # MVI L,nn
+	0x2f: CMA()              # CMA
+	0x31: LXI_RR_NNNN(SP)    # LXI SP,nnnn
+	0x32: STA_NNNN()         # STA nnnn
+	0x33: INX_RR(SP)         # INX SP
+	0x34: INR_M()            # INR M
+	0x35: DCR_M()            # DCR M
+	0x36: MVI_M_NN()         # MVI M,nn
+	0x37: STC()              # STC
+	0x39: DAD_RR(SP)         # DAD SP
+	0x3a: LDA_NNNN()         # LDA nnnn
+	0x3b: DCX_RR(SP)         # DCX SP
+	0x3c: INR_R(A)           # INR A
+	0x3d: DCR_R(A)           # DCR A
+	0x3e: MVI_R_NN(A)        # MVI A,nn
+	0x3f: CMC()              # CMC
+	0x40: MOV_R_R(B, B)      # MOV B,B
+	0x41: MOV_R_R(B, C)      # MOV B,C
+	0x42: MOV_R_R(B, D)      # MOV B,D
+	0x43: MOV_R_R(B, E)      # MOV B,E
+	0x44: MOV_R_R(B, H)      # MOV B,H
+	0x45: MOV_R_R(B, L)      # MOV B,L
+	0x46: MOV_R_M(B)         # MOV B,M
+	0x47: MOV_R_R(B, A)      # MOV B,A
+	0x48: MOV_R_R(C, B)      # MOV C,B
+	0x49: MOV_R_R(C, C)      # MOV C,C
+	0x4a: MOV_R_R(C, D)      # MOV C,D
+	0x4b: MOV_R_R(C, E)      # MOV C,E
+	0x4c: MOV_R_R(C, H)      # MOV C,H
+	0x4d: MOV_R_R(C, L)      # MOV C,L
+	0x4e: MOV_R_M(C)         # MOV C,M
+	0x4f: MOV_R_R(C, A)      # MOV C,A
+	0x50: MOV_R_R(D, B)      # MOV D,B
+	0x51: MOV_R_R(D, C)      # MOV D,C
+	0x52: MOV_R_R(D, D)      # MOV D,D
+	0x53: MOV_R_R(D, E)      # MOV D,E
+	0x54: MOV_R_R(D, H)      # MOV D,H
+	0x55: MOV_R_R(D, L)      # MOV D,L
+	0x56: MOV_R_M(D)         # MOV D,M
+	0x57: MOV_R_R(D, A)      # MOV D,A
+	0x58: MOV_R_R(E, B)      # MOV E,B
+	0x59: MOV_R_R(E, C)      # MOV E,C
+	0x5a: MOV_R_R(E, D)      # MOV E,D
+	0x5b: MOV_R_R(E, E)      # MOV E,E
+	0x5c: MOV_R_R(E, H)      # MOV E,H
+	0x5d: MOV_R_R(E, L)      # MOV E,L
+	0x5e: MOV_R_M(E)         # MOV E,M
+	0x5f: MOV_R_R(E, A)      # MOV E,A
+	0x60: MOV_R_R(H, B)      # MOV H,B
+	0x61: MOV_R_R(H, C)      # MOV H,C
+	0x62: MOV_R_R(H, D)      # MOV H,D
+	0x63: MOV_R_R(H, E)      # MOV H,E
+	0x64: MOV_R_R(H, H)      # MOV H,H
+	0x65: MOV_R_R(H, L)      # MOV H,L
+	0x66: MOV_R_M(H)         # MOV H,M
+	0x67: MOV_R_R(H, A)      # MOV H,A
+	0x68: MOV_R_R(L, B)      # MOV L,B
+	0x69: MOV_R_R(L, C)      # MOV L,C
+	0x6a: MOV_R_R(L, D)      # MOV L,D
+	0x6b: MOV_R_R(L, E)      # MOV L,E
+	0x6c: MOV_R_R(L, H)      # MOV L,H
+	0x6d: MOV_R_R(L, L)      # MOV L,L
+	0x6e: MOV_R_M(L)         # MOV L,M
+	0x6f: MOV_R_R(L, A)      # MOV L,A
 	# MOV M,B
 	0x70: """
 		memory.write(rp[HL], r[B]);
