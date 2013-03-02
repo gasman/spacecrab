@@ -7,6 +7,20 @@ SP = {'p': 'SP', 'h': 'SPh', 'l': 'SPl'}
 A = 'A'; B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
 # Constructors for runstrings for each class of operations
 
+ADC_R = (r) -> """
+	result = (r[A] + r[#{r}] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++; cycle += 4; break;
+"""
+
+ADD_R = (r) -> """
+	result = (r[A] + r[#{r}]) & 0xff;
+	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++; cycle += 4; break;
+"""
+
 CMA = () -> """
 	r[A] = ~r[A];
 	rp[PC]++;
@@ -193,6 +207,13 @@ RRC = () -> """
 	cycle += 4;
 """
 
+SBB_R = (r) -> """
+	result = (r[A] - r[#{r}] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++; cycle += 4; break;
+"""
+
 SHLD_NNNN = () -> """
 	lo = memory.read(++rp[PC]);
 	hi = memory.read(++rp[PC]);
@@ -221,6 +242,13 @@ STC = () -> """
 	r[F] |= Fcy;
 	rp[PC]++;
 	cycle += 4;
+"""
+
+SUB_R = (r) -> """
+	result = (r[A] - r[#{r}]) & 0xff;
+	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++; cycle += 4; break;
 """
 
 # A mapping from opcodes to Javascript strings that perform them
@@ -346,48 +374,12 @@ OPCODE_RUN_STRINGS = {
 	0x7d: MOV_R_R(A, L)      # MOV A,L
 	0x7e: MOV_R_M(A)         # MOV A,M
 	0x7f: MOV_R_R(A, A)      # MOV A,A
-	# ADD B
-	0x80: """
-		result = (r[A] + r[B]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADD C
-	0x81: """
-		result = (r[A] + r[C]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADD D
-	0x82: """
-		result = (r[A] + r[D]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADD E
-	0x83: """
-		result = (r[A] + r[E]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADD H
-	0x84: """
-		result = (r[A] + r[H]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADD L
-	0x85: """
-		result = (r[A] + r[L]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
+	0x80: ADD_R(B)           # ADD B
+	0x81: ADD_R(C)           # ADD C
+	0x82: ADD_R(D)           # ADD D
+	0x83: ADD_R(E)           # ADD E
+	0x84: ADD_R(H)           # ADD H
+	0x85: ADD_R(L)           # ADD L
 	# ADD M
 	0x86: """
 		result = (r[A] + memory.read(rp[HL])) & 0xff;
@@ -395,56 +387,13 @@ OPCODE_RUN_STRINGS = {
 		r[A] = result;
 		rp[PC]++; cycle += 7; break;
 	"""
-	# ADD A
-	0x87: """
-		result = (r[A] + r[A]) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-
-	"""
-	# ADC B
-	0x88: """
-		result = (r[A] + r[B] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADC C
-	0x89: """
-		result = (r[A] + r[C] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADC D
-	0x8a: """
-		result = (r[A] + r[D] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADC E
-	0x8b: """
-		result = (r[A] + r[E] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADC H
-	0x8c: """
-		result = (r[A] + r[H] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# ADC L
-	0x8d: """
-		result = (r[A] + r[L] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
+	0x87: ADD_R(A)           # ADD A
+	0x88: ADC_R(B)           # ADC B
+	0x89: ADC_R(C)           # ADC C
+	0x8a: ADC_R(D)           # ADC D
+	0x8b: ADC_R(E)           # ADC E
+	0x8c: ADC_R(H)           # ADC H
+	0x8d: ADC_R(L)           # ADC L
 	# ADC M
 	0x8e: """
 		result = (r[A] + memory.read(rp[HL]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
@@ -452,56 +401,13 @@ OPCODE_RUN_STRINGS = {
 		r[A] = result;
 		rp[PC]++; cycle += 7; break;
 	"""
-	# ADC A
-	0x8f: """
-		result = (r[A] + r[A] + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-
-	"""
-	# SUB B
-	0x90: """
-		result = (r[A] - r[B]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SUB C
-	0x91: """
-		result = (r[A] - r[C]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SUB D
-	0x92: """
-		result = (r[A] - r[D]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SUB E
-	0x93: """
-		result = (r[A] - r[E]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SUB H
-	0x94: """
-		result = (r[A] - r[H]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SUB L
-	0x95: """
-		result = (r[A] - r[L]) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
+	0x8f: ADC_R(A)           # ADC A
+	0x90: SUB_R(B)           # SUB B
+	0x91: SUB_R(C)           # SUB C
+	0x92: SUB_R(D)           # SUB D
+	0x93: SUB_R(E)           # SUB E
+	0x94: SUB_R(H)           # SUB H
+	0x95: SUB_R(L)           # SUB L
 	# SUB M
 	0x96: """
 		result = (r[A] - memory.read(rp[HL])) & 0xff;
@@ -509,55 +415,13 @@ OPCODE_RUN_STRINGS = {
 		r[A] = result;
 		rp[PC]++; cycle += 7; break;
 	"""
-	# SUB A
-	0x97: """
-		r[F] = szpTable[0];
-		r[A] = 0;
-		rp[PC]++; cycle += 4; break;
-
-	"""
-	# SBB B
-	0x98: """
-		result = (r[A] - r[B] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SBB C
-	0x99: """
-		result = (r[A] - r[C] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SBB D
-	0x9a: """
-		result = (r[A] - r[D] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SBB E
-	0x9b: """
-		result = (r[A] - r[E] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SBB H
-	0x9c: """
-		result = (r[A] - r[H] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
-	# SBB L
-	0x9d: """
-		result = (r[A] - r[L] - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-	"""
+	0x97: SUB_R(A)           # SUB A
+	0x98: SBB_R(B)           # SBB B
+	0x99: SBB_R(C)           # SBB C
+	0x9a: SBB_R(D)           # SBB D
+	0x9b: SBB_R(E)           # SBB E
+	0x9c: SBB_R(H)           # SBB H
+	0x9d: SBB_R(L)           # SBB L
 	# SBB M
 	0x9e: """
 		result = (r[A] - memory.read(rp[HL]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
@@ -566,13 +430,7 @@ OPCODE_RUN_STRINGS = {
 		rp[PC]++; cycle += 7; break;
 	"""
 	# SBB A
-	0x9f: """
-		result = (r[F] & Fcy) ? 0xff : 0;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 4; break;
-
-	"""
+	0x9f: SBB_R(A)           # SBB A
 	# ANA B
 	0xa0: """
 		r[A] &= r[B]; r[F] = szpTable[r[A]];
