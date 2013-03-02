@@ -6,6 +6,28 @@ HL = {'p': 'HL', 'h': 'H', 'l': 'L'}
 B = 'B'; C = 'C'; D = 'D'; E = 'E'; H = 'H'; L = 'L';
 # Constructors for runstrings for each class of operations
 
+CMA = () -> """
+	r[A] = ~r[A];
+	rp[PC]++;
+	cycle += 4;
+"""
+
+DAA = () -> """
+	var newF = 0;
+	if (((r[A] & 0x0f) > 0x09) || (r[F] & Fac)) {
+		/* add 6 to A; set AC if this causes overflow from bit 3 (i.e. bottom four bits are >= A) */
+		newF |= ((r[A] & 0x0f) >= 0x0a) ? Fac : 0;
+		r[A] += 0x06;
+	}
+	if (((r[A] & 0xf0) > 0x90) || (r[F] & Fcy)) {
+		newF |= ((r[A] & 0xf0) >= 0xa0) ? Fcy : 0;
+		r[A] += 0x60;
+	}
+	r[F] = newF | szpTable[r[A]];
+	rp[PC]++;
+	cycle += 4;
+"""
+
 DAD_RR = (rr) -> """
 	result = rp[HL] + rp[#{rr.p}];
 	r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
@@ -48,6 +70,16 @@ LDAX_RR = (rr) -> """
 	cycle += 7;
 """
 
+LHLD_NNNN = () -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	result = (hi << 8) | lo;
+	r[L] = memory.read(result);
+	r[H] = memory.read((result + 1) & 0xffff);
+	rp[PC]++;
+	cycle += 16;
+"""
+
 LXI_RR_NNNN = (rr) -> """
 	r[#{rr.l}] = memory.read(++rp[PC]);
 	r[#{rr.h}] = memory.read(++rp[PC]);
@@ -66,12 +98,48 @@ NOP = () -> """
 	cycle += 4;
 """
 
+RAL = () -> """
+	result = (r[A] << 1) | (r[F] & Fcy ? 1 : 0);
+	/* copy top bit of A to carry flag */
+	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+	r[A] = result;
+	rp[PC]++;
+	cycle += 4;
+"""
+
+RAR = () -> """
+	result = (r[A] >> 1) | (r[F] & Fcy ? 0x80 : 0);
+	/* copy bottom bit of A to carry flag */
+	r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+	r[A] = result;
+	rp[PC]++;
+	cycle += 4;
+"""
+
 RLC = () -> """
 	/* copy top bit of A to carry flag */
 	r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
 	r[A] = (r[A] << 1) | ((r[A] & 0x80) >> 7);
 	rp[PC]++;
 	cycle += 4;
+"""
+
+RRC = () -> """
+	/* copy bottom bit of A to carry flag */
+	r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
+	r[A] = (r[A] >> 1) | ((r[A] & 0x01) << 7);
+	rp[PC]++;
+	cycle += 4;
+"""
+
+SHLD_NNNN = () -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	result = (hi << 8) | lo;
+	memory.write(result, r[L]);
+	memory.write((result + 1) & 0xffff, r[H]);
+	rp[PC]++;
+	cycle += 16;
 """
 
 STAX_RR = (rr) -> """
@@ -105,249 +173,69 @@ OPCODE_RUN_STRINGS = {
 	# DCX BC
 	0x0b: DCX_RR(BC)
 	# INR C
-	0x0c: """
-		r[C]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[C]] | ((r[C] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x0c: INR_R(C)
 	# DCR C
-	0x0d: """
-		r[C]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[C]] | ((r[C] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x0d: DCR_R(C)
 	# MVI C,nn
-	0x0e: """
-		r[C] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x0e: MVI_R_NN(C)
 	# RRC
-	0x0f: """
-		/* copy bottom bit of A to carry flag */
-		r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-		r[A] = (r[A] >> 1) | ((r[A] & 0x01) << 7);
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x0f: RRC()
 	# LXI DE,nnnn
-	0x11: """
-		r[E] = memory.read(++rp[PC]);
-		r[D] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x11: LXI_RR_NNNN(DE)
 	# STAX DE
-	0x12: """
-		memory.write(rp[DE], r[A]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x12: STAX_RR(DE)
 	# INX DE
-	0x13: """
-		rp[DE]++;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x13: INX_RR(DE)
 	# INR D
-	0x14: """
-		r[D]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[D]] | ((r[D] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x14: INR_R(D)
 	# DCR D
-	0x15: """
-		r[D]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[D]] | ((r[D] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x15: DCR_R(D)
 	# MVI D,nn
-	0x16: """
-		r[D] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x16: MVI_R_NN(D)
 	# RAL
-	0x17: """
-		result = (r[A] << 1) | (r[F] & Fcy ? 1 : 0);
-		/* copy top bit of A to carry flag */
-		r[F] = (r[A] & 0x80) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-		r[A] = result;
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x17: RAL()
 	# DAD DE
-	0x19: """
-		result = rp[HL] + rp[DE];
-		r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
-		rp[HL] = result;
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x19: DAD_RR(DE)
 	# LDAX DE
-	0x1a: """
-		r[A] = memory.read(rp[DE]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x1a: LDAX_RR(DE)
 	# DCX DE
-	0x1b: """
-		rp[DE]--;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x1b: DCX_RR(DE)
 	# INR E
-	0x1c: """
-		r[E]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[E]] | ((r[E] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x1c: INR_R(E)
 	# DCR E
-	0x1d: """
-		r[E]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[E]] | ((r[E] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x1d: DCR_R(E)
 	# MVI E,nn
-	0x1e: """
-		r[E] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x1e: MVI_R_NN(E)
 	# RAR
-	0x1f: """
-		result = (r[A] >> 1) | (r[F] & Fcy ? 0x80 : 0);
-		/* copy bottom bit of A to carry flag */
-		r[F] = (r[A] & 0x01) ? (r[F] | Fcy) : (r[F] & ~Fcy);
-		r[A] = result;
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x1f: RAR()
 	# LXI HL,nnnn
-	0x21: """
-		r[L] = memory.read(++rp[PC]);
-		r[H] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x21: LXI_RR_NNNN(HL)
 	# SHLD nnnn
-	0x22: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		result = (hi << 8) | lo;
-		memory.write(result, r[L]);
-		memory.write((result + 1) & 0xffff, r[H]);
-		rp[PC]++;
-		cycle += 16;
-	"""
+	0x22: SHLD_NNNN()
 	# INX HL
-	0x23: """
-		rp[HL]++;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x23: INX_RR(HL)
 	# INR H
-	0x24: """
-		r[H]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[H]] | ((r[H] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x24: INR_R(H)
 	# DCR H
-	0x25: """
-		r[H]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[H]] | ((r[H] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x25: DCR_R(H)
 	# MVI H,nn
-	0x26: """
-		r[H] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x26: MVI_R_NN(H)
 	# DAA
-	0x27: """
-		var newF = 0;
-		if (((r[A] & 0x0f) > 0x09) || (r[F] & Fac)) {
-			/* add 6 to A; set AC if this causes overflow from bit 3 (i.e. bottom four bits are >= A) */
-			newF |= ((r[A] & 0x0f) >= 0x0a) ? Fac : 0;
-			r[A] += 0x06;
-		}
-		if (((r[A] & 0xf0) > 0x90) || (r[F] & Fcy)) {
-			newF |= ((r[A] & 0xf0) >= 0xa0) ? Fcy : 0;
-			r[A] += 0x60;
-		}
-		r[F] = newF | szpTable[r[A]];
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x27: DAA()
 	# DAD HL
-	0x29: """
-		result = rp[HL] + rp[HL];
-		r[F] = (r[F] & ~Fcy) | (result & 0x10000 ? Fcy : 0);
-		rp[HL] = result;
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0x29: DAD_RR(HL)
 	# LHLD nnnn
-	0x2a: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		result = (hi << 8) | lo;
-		r[L] = memory.read(result);
-		r[H] = memory.read((result + 1) & 0xffff);
-		rp[PC]++;
-		cycle += 16;
-	"""
+	0x2a: LHLD_NNNN()
 	# DCX HL
-	0x2b: """
-		rp[HL]--;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x2b: DCX_RR(HL)
 	# INR L
-	0x2c: """
-		r[L]++;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
-		r[F] = (r[F] & Fcy) | szpTable[r[L]] | ((r[L] & 0x0f) ? 0 : Fac);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x2c: INR_R(L)
 	# DCR L
-	0x2d: """
-		r[L]--;
-		/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
-		r[F] = (r[F] & Fcy) | szpTable[r[L]] | ((r[L] & 0x0f) == 0x0f ? Fac : 0);
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0x2d: DCR_R(L)
 	# MVI L,nn
-	0x2e: """
-		r[L] = memory.read(++rp[PC]);
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0x2e: MVI_R_NN(L)
 	# CMA
-	0x2f: """
-		r[A] = ~r[A];
-		rp[PC]++;
-		cycle += 4;
-	"""
+	0x2f: CMA()
 	# LXI SP,nnnn
 	0x31: """
 		r[SPl] = memory.read(++rp[PC]);
