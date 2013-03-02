@@ -18,6 +18,13 @@ condP = '!(r[F] & Fs)'
 
 # Constructors for runstrings for each class of operations
 
+ACI_NN = () -> """
+	result = (r[A] + memory.read(++rp[PC]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++; cycle += 7;
+"""
+
 ADC_M = () -> """
 	result = (r[A] + memory.read(rp[HL]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
 	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
@@ -46,6 +53,14 @@ ADD_R = (r) -> """
 	rp[PC]++; cycle += 4;
 """
 
+ADI_NN = () -> """
+	result = (r[A] + memory.read(++rp[PC])) & 0xff;
+	r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++;
+	cycle += 7;
+"""
+
 ANA_M = () -> """
 	r[A] &= memory.read(rp[HL]); r[F] = szpTable[r[A]];
 	rp[PC]++; cycle += 7;
@@ -63,6 +78,13 @@ ANA_R = (r) ->
 			rp[PC]++; cycle += 4;
 		"""
 
+ANI_NN = () -> """
+	r[A] &= memory.read(++rp[PC]);
+	r[F] = szpTable[r[A]];
+	rp[PC]++;
+	cycle += 7;
+"""
+
 CALL_C = (cond) -> """
 	if (#{cond}) {
 		lo = memory.read(++rp[PC]);
@@ -76,6 +98,16 @@ CALL_C = (cond) -> """
 		rp[PC] += 3;
 		cycle += 11;
 	}
+"""
+
+CALL_NNNN = (cond) -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	rp[PC]++;
+	memory.write(--rp[SP], r[PCh]);
+	memory.write(--rp[SP], r[PCl]);
+	r[PCh] = hi; r[PCl] = lo;
+	cycle += 17;
 """
 
 CMA = () -> """
@@ -112,6 +144,13 @@ CMP_R = (r) ->
 			rp[PC]++;
 			cycle += 4;
 		"""
+
+CPI_NN = () -> """
+	result = (r[A] - memory.read(++rp[PC])) & 0xff;
+	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+	rp[PC]++;
+	cycle += 7;
+"""
 
 DAA = () -> """
 	var newF = 0;
@@ -160,6 +199,24 @@ DCX_RR = (rr) -> """
 	cycle += 5;
 """
 
+DI = () -> """
+	interruptsEnabled = false;
+	rp[PC] += 1;
+	cycle += 4;
+"""
+
+EI = () -> """
+	interruptsEnabled = true;
+	rp[PC] += 1;
+	cycle += 4;
+"""
+
+IN_NN = () -> """
+	r[A] = io.read(memory.read(++rp[PC]));
+	rp[PC]++;
+	cycle += 10;
+"""
+
 INX_RR = (rr) -> """
 	rp[#{rr.p}]++;
 	rp[PC]++;
@@ -191,6 +248,13 @@ JMP_C = (cond) -> """
 	} else {
 		rp[PC] += 3;
 	}
+	cycle += 10;
+"""
+
+JMP_NNNN = () -> """
+	lo = memory.read(++rp[PC]);
+	hi = memory.read(++rp[PC]);
+	r[PCh] = hi; r[PCl] = lo;
 	cycle += 10;
 """
 
@@ -281,6 +345,24 @@ ORA_R = (r) ->
 			rp[PC]++; cycle += 4;
 		"""
 
+ORI_NN = () -> """
+	r[A] |= memory.read(++rp[PC]);
+	r[F] = szpTable[r[A]];
+	rp[PC]++;
+	cycle += 7;
+"""
+
+OUT_NN = () -> """
+	io.write(memory.read(++rp[PC]), r[A]);
+	rp[PC]++;
+	cycle += 10;
+"""
+
+PCHL = () -> """
+	rp[PC] = rp[HL];
+	cycle += 5;
+"""
+
 POP_RR = (rr) -> """
 	r[#{rr.l}] = memory.read(rp[SP]++);
 	r[#{rr.h}] = memory.read(rp[SP]++);
@@ -311,6 +393,12 @@ RAR = () -> """
 	r[A] = result;
 	rp[PC]++;
 	cycle += 4;
+"""
+
+RET = () -> """
+	r[PCl] = memory.read(rp[SP]++);
+	r[PCh] = memory.read(rp[SP]++);
+	cycle += 10;
 """
 
 RET_C = (cond) -> """
@@ -362,6 +450,14 @@ SBB_R = (r) -> """
 	rp[PC]++; cycle += 4;
 """
 
+SBI_NN = () -> """
+	result = (r[A] - memory.read(++rp[PC]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
+	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++;
+	cycle += 7;
+"""
+
 SHLD_NNNN = () -> """
 	lo = memory.read(++rp[PC]);
 	hi = memory.read(++rp[PC]);
@@ -370,6 +466,12 @@ SHLD_NNNN = () -> """
 	memory.write((result + 1) & 0xffff, r[H]);
 	rp[PC]++;
 	cycle += 16;
+"""
+
+SPHL = () -> """
+	rp[SP] = rp[HL];
+	rp[PC]++;
+	cycle += 5;
 """
 
 STA_NNNN = () -> """
@@ -406,6 +508,22 @@ SUB_R = (r) -> """
 	rp[PC]++; cycle += 4;
 """
 
+SUI_NN = () -> """
+	result = (r[A] - memory.read(++rp[PC])) & 0xff;
+	r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
+	r[A] = result;
+	rp[PC]++;
+	cycle += 7;
+"""
+
+XCHG = () -> """
+	result = rp[HL];
+	rp[HL] = rp[DE];
+	rp[DE] = result;
+	rp[PC]++;
+	cycle += 5;
+"""
+
 XRA_M = () -> """
 	r[A] ^= memory.read(rp[HL]); r[F] = szpTable[r[A]];
 	rp[PC]++; cycle += 7;
@@ -423,6 +541,23 @@ XRA_R = (r) ->
 			rp[PC]++; cycle += 4;
 		"""
 
+XRI_NN = () -> """
+	r[A] ^= memory.read(++rp[PC]);
+	r[F] = szpTable[r[A]];
+	rp[PC]++;
+	cycle += 7;
+"""
+
+XTHL = () -> """
+	lo = memory.read(rp[SP]);
+	hi = memory.read(rp[SP] + 1);
+	memory.write(rp[SP], r[L]);
+	memory.write(rp[SP] + 1, r[H]);
+	r[L] = lo; r[H] = hi;
+	rp[PC]++;
+	cycle += 18;
+"""
+
 # A mapping from opcodes to Javascript strings that perform them
 OPCODE_RUN_STRINGS = {
 	0x00: NOP()              # NOP
@@ -433,6 +568,7 @@ OPCODE_RUN_STRINGS = {
 	0x05: DCR_R(B)           # DCR B
 	0x06: MVI_R_NN(B)        # MVI B,nn
 	0x07: RLC()              # RLC
+
 	0x09: DAD_RR(BC)         # DAD BC
 	0x0a: LDAX_RR(BC)        # LDAX BC
 	0x0b: DCX_RR(BC)         # DCX BC
@@ -440,6 +576,7 @@ OPCODE_RUN_STRINGS = {
 	0x0d: DCR_R(C)           # DCR C
 	0x0e: MVI_R_NN(C)        # MVI C,nn
 	0x0f: RRC()              # RRC
+
 	0x11: LXI_RR_NNNN(DE)    # LXI DE,nnnn
 	0x12: STAX_RR(DE)        # STAX DE
 	0x13: INX_RR(DE)         # INX DE
@@ -447,6 +584,7 @@ OPCODE_RUN_STRINGS = {
 	0x15: DCR_R(D)           # DCR D
 	0x16: MVI_R_NN(D)        # MVI D,nn
 	0x17: RAL()              # RAL
+
 	0x19: DAD_RR(DE)         # DAD DE
 	0x1a: LDAX_RR(DE)        # LDAX DE
 	0x1b: DCX_RR(DE)         # DCX DE
@@ -454,6 +592,7 @@ OPCODE_RUN_STRINGS = {
 	0x1d: DCR_R(E)           # DCR E
 	0x1e: MVI_R_NN(E)        # MVI E,nn
 	0x1f: RAR()              # RAR
+
 	0x21: LXI_RR_NNNN(HL)    # LXI HL,nnnn
 	0x22: SHLD_NNNN()        # SHLD nnnn
 	0x23: INX_RR(HL)         # INX HL
@@ -461,6 +600,7 @@ OPCODE_RUN_STRINGS = {
 	0x25: DCR_R(H)           # DCR H
 	0x26: MVI_R_NN(H)        # MVI H,nn
 	0x27: DAA()              # DAA
+
 	0x29: DAD_RR(HL)         # DAD HL
 	0x2a: LHLD_NNNN()        # LHLD nnnn
 	0x2b: DCX_RR(HL)         # DCX HL
@@ -468,6 +608,7 @@ OPCODE_RUN_STRINGS = {
 	0x2d: DCR_R(L)           # DCR L
 	0x2e: MVI_R_NN(L)        # MVI L,nn
 	0x2f: CMA()              # CMA
+
 	0x31: LXI_RR_NNNN(SP)    # LXI SP,nnnn
 	0x32: STA_NNNN()         # STA nnnn
 	0x33: INX_RR(SP)         # INX SP
@@ -475,6 +616,7 @@ OPCODE_RUN_STRINGS = {
 	0x35: DCR_M()            # DCR M
 	0x36: MVI_M_NN()         # MVI M,nn
 	0x37: STC()              # STC
+
 	0x39: DAD_RR(SP)         # DAD SP
 	0x3a: LDA_NNNN()         # LDA nnnn
 	0x3b: DCX_RR(SP)         # DCX SP
@@ -613,178 +755,66 @@ OPCODE_RUN_STRINGS = {
 	0xc0: RET_C(condNZ)      # RNZ
 	0xc1: POP_RR(BC)         # POP BC
 	0xc2: JMP_C(condNZ)      # JNZ nnnn
-	# JMP nnnn
-	0xc3: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		r[PCh] = hi; r[PCl] = lo;
-		cycle += 10;
-	"""
+	0xc3: JMP_NNNN()         # JMP nnnn
 	0xc4: CALL_C(condNZ)     # CNZ nnnn
 	0xc5: PUSH_RR(BC)        # PUSH BC
-	# ADI nn
-	0xc6: """
-		result = (r[A] + memory.read(++rp[PC])) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0xc6: ADI_NN()           # ADI nn
 	0xc7: RST(0x0000)        # RST 00
 	0xc8: RET_C(condZ)       # RZ
-	# RET
-	0xc9: """
-		r[PCl] = memory.read(rp[SP]++);
-		r[PCh] = memory.read(rp[SP]++);
-		cycle += 10;
-	"""
+	0xc9: RET()              # RET
 	0xca: JMP_C(condZ)       # JZ nnnn
+
 	0xcc: CALL_C(condZ)      # CZ nnnn
-	# CALL nnnn
-	0xcd: """
-		lo = memory.read(++rp[PC]);
-		hi = memory.read(++rp[PC]);
-		rp[PC]++;
-		memory.write(--rp[SP], r[PCh]);
-		memory.write(--rp[SP], r[PCl]);
-		r[PCh] = hi; r[PCl] = lo;
-		cycle += 17;
-	"""
-	# ACI nn
-	0xce: """
-		result = (r[A] + memory.read(++rp[PC]) + ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result < r[A] ? Fcy : 0) | ((result & 0x0f) < (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++; cycle += 7;
-	"""
+	0xcd: CALL_NNNN()        # CALL nnnn
+	0xce: ACI_NN()           # ACI nn
 	0xcf: RST(0x0008)        # RST 08
 	0xd0: RET_C(condNC)      # RNC
 	0xd1: POP_RR(DE)         # POP DE
 	0xd2: JMP_C(condNC)      # JNC nnnn
-	# OUT nn
-	0xd3: """
-		io.write(memory.read(++rp[PC]), r[A]);
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xd3: OUT_NN()           # OUT nn
 	0xd4: CALL_C(condNC)     # CNC nnnn
 	0xd5: PUSH_RR(DE)        # PUSH DE
-	# SUI nn
-	0xd6: """
-		result = (r[A] - memory.read(++rp[PC])) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0xd6: SUI_NN()           # SUI nn
 	0xd7: RST(0x0010)        # RST 10
 	0xd8: RET_C(condC)       # RC
+
 	0xda: JMP_C(condC)       # JC nnnn
-	# IN nn
-	0xdb: """
-		r[A] = io.read(memory.read(++rp[PC]));
-		rp[PC]++;
-		cycle += 10;
-	"""
+	0xdb: IN_NN()            # IN nn
 	0xdc: CALL_C(condC)      # CC nnnn
-	# SBI nn
-	0xde: """
-		result = (r[A] - memory.read(++rp[PC]) - ((r[F] & Fcy) ? 1 : 0)) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		r[A] = result;
-		rp[PC]++;
-		cycle += 7;
-	"""
+
+	0xde: SBI_NN()           # SBI nn
 	0xdf: RST(0x0018)        # RST 18
 	0xe0: RET_C(condPO)      # RPO
 	0xe1: POP_RR(HL)         # POP HL
-	# JPO nnnn
 	0xe2: JMP_C(condPO)      # JPO nnnn
-	# XTHL
-	0xe3: """
-		lo = memory.read(rp[SP]);
-		hi = memory.read(rp[SP] + 1);
-		memory.write(rp[SP], r[L]);
-		memory.write(rp[SP] + 1, r[H]);
-		r[L] = lo; r[H] = hi;
-		rp[PC]++;
-		cycle += 18;
-	"""
+	0xe3: XTHL()             # XTHL
 	0xe4: CALL_C(condPO)     # CPO nnnn
 	0xe5: PUSH_RR(HL)        # PUSH HL
-	# ANI nn
-	0xe6: """
-		r[A] &= memory.read(++rp[PC]);
-		r[F] = szpTable[r[A]];
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0xe6: ANI_NN()           # ANI nn
 	0xe7: RST(0x0020)        # RST 20
 	0xe8: RET_C(condPE)      # RPE
-	# PCHL
-	0xe9: """
-		rp[PC] = rp[HL];
-		cycle += 5;
-	"""
+	0xe9: PCHL()             # PCHL
 	0xea: JMP_C(condPE)      # JPE nnnn
-	# XCHG
-	0xeb: """
-		result = rp[HL];
-		rp[HL] = rp[DE];
-		rp[DE] = result;
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0xeb: XCHG()             # XCHG
 	0xec: CALL_C(condPE)     # CPE nnnn
-	# XRI nn
-	0xee: """
-		r[A] ^= memory.read(++rp[PC]);
-		r[F] = szpTable[r[A]];
-		rp[PC]++;
-		cycle += 7;
-	"""
+
+	0xee: XRI_NN()           # XRI nn
 	0xef: RST(0x0028)        # RST 28
 	0xf0: RET_C(condP)       # RP
 	0xf1: POP_RR(AF)         # POP PSW
 	0xf2: JMP_C(condP)       # JP nnnn
-	# DI
-	0xf3: """
-		interruptsEnabled = false;
-		rp[PC] += 1;
-		cycle += 4;
-	"""
+	0xf3: DI()               # DI
 	0xf4: CALL_C(condP)      # CP nnnn
 	0xf5: PUSH_RR(AF)        # PUSH PSW
-	# ORI nn
-	0xf6: """
-		r[A] |= memory.read(++rp[PC]);
-		r[F] = szpTable[r[A]];
-		rp[PC]++;
-		cycle += 7;
-	"""
+	0xf6: ORI_NN()           # ORI nn
 	0xf7: RST(0x0030)        # RST 30
-	0xf8: RET_C(condM)      # RM
-	# SPHL
-	0xf9: """
-		rp[SP] = rp[HL];
-		rp[PC]++;
-		cycle += 5;
-	"""
+	0xf8: RET_C(condM)       # RM
+	0xf9: SPHL()             # SPHL
 	0xfa: JMP_C(condM)       # JM nnnn
-	# EI
-	0xfb: """
-		interruptsEnabled = true;
-		rp[PC] += 1;
-		cycle += 4;
-	"""
+	0xfb: EI()               # EI
 	0xfc: CALL_C(condM)      # CP nnnn
-	# CPI nn
-	0xfe: """
-		result = (r[A] - memory.read(++rp[PC])) & 0xff;
-		r[F] = szpTable[result] | (result > r[A] ? Fcy : 0) | ((result & 0x0f) > (r[A] & 0x0f) ? Fac : 0);
-		rp[PC]++;
-		cycle += 7;
-	"""
+
+	0xfe: CPI_NN()           # CPI nn
 	0xff: RST(0x0038)        # RST 38
 }
 
