@@ -1,4 +1,5 @@
-function Processor8080(memory, io) {
+define8080JS = """
+window.Processor8080 = function(memory, io) {
 	var self = {};
 
 	var endianTestBuffer = new ArrayBuffer(2);
@@ -1451,3 +1452,7 @@ function Processor8080(memory, io) {
 
 	return self;
 }
+"""
+
+indirectEval = eval
+indirectEval(define8080JS);
