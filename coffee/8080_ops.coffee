@@ -13,7 +13,7 @@
 	lo, hi, result: local variables available for storing temporary results in
 ###
 
-# bulk-assign local vars for registers, imported from the RegisterAllocation module
+# bulk-assign local vars for registers, imported from the Processor8080Definitions module
 {
 	A:A, F:F, B:B, C:C, D:D, E:E, H:H, L:L,
 	SPh:SPh, SPl:SPl, PCh:PCh, PCl:PCl
