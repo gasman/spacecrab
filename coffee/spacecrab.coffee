@@ -139,16 +139,11 @@ window.init = () ->
 		proc = Processor8080(memory, io)
 		runFrame()
 
-	intCount = 0
 	runFrame = () ->
 		proc.runForCycles(16667)
-		# proc.logState(intCount)
 		proc.interrupt(0xcf)  # opcode for RST 08
-		intCount++
 		proc.runForCycles(16667)
-		# proc.logState(intCount)
 		proc.interrupt(0xd7)  # opcode for RST 10
-		intCount++
 		drawScreen()
 		setTimeout(runFrame, 17)  # 60 Hz, ish
 

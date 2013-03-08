@@ -38,7 +38,7 @@ window.Processor8080 = function(memory, io) {
 	var interruptPending = false;
 	var interruptOpcode;
 
-	self.runForCycles = function(cycleCount, trace) {
+	self.runForCycles = function(cycleCount) {
 		var lo, hi, result, opcode;
 
 		while(cycle < cycleCount) {
@@ -50,8 +50,6 @@ window.Processor8080 = function(memory, io) {
 			}
 
 			#{opcodeSwitch(OPCODE_RUN_STRINGS)}
-
-			if (trace) self.logState('trace');
 		}
 		cycle -= cycleCount;
 	};
@@ -63,8 +61,8 @@ window.Processor8080 = function(memory, io) {
 		}
 	};
 
-	self.logState = function(intCount) {
-		console.log(intCount + ': ' + rp[#{AF.p}].toString(16) + ' ' + rp[#{BC.p}].toString(16) + ' ' + rp[#{DE.p}].toString(16) + ' ' + rp[#{HL.p}].toString(16) + ' ' + rp[#{PC.p}].toString(16) + ' ' + rp[#{SP.p}].toString(16) + ' at cycle ' + cycle);
+	self.logState = function(label) {
+		console.log(label + ': ' + rp[#{AF.p}].toString(16) + ' ' + rp[#{BC.p}].toString(16) + ' ' + rp[#{DE.p}].toString(16) + ' ' + rp[#{HL.p}].toString(16) + ' ' + rp[#{PC.p}].toString(16) + ' ' + rp[#{SP.p}].toString(16) + ' at cycle ' + cycle);
 	};
 
 	return self;
