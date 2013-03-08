@@ -1,3 +1,18 @@
+###
+	This module defines a dictionary of 'runstrings': snippets of Javascript which
+	emulate an individual 8080 instruction, using a collection of local variables
+	to model the processor state and environment. These are:
+
+	r: a Uint8Array containing all the 8080 registers, at indexes defined by Processor8080Definitions.registers
+	rp: a Uint16Array backed by the same storage as r, containing the register pairs at indexes defined by Processor8080Definitions.registerPairs
+	interruptsEnabled: a boolean indicating whether interrupts are enabled
+	memory: a byte store responding to read(addr) and write(addr, val) methods
+	io: an input/output interface responding to read(port) and write(port, val) methods
+	cycle: a counter incremented for every clock cycle executed
+	szpTable: a lookup table indicating the state of the S, Z and P flags for every possible ALU result
+	lo, hi, result: local variables available for storing temporary results in
+###
+
 # bulk-assign local vars for registers, imported from the RegisterAllocation module
 {
 	A:A, F:F, B:B, C:C, D:D, E:E, H:H, L:L,
