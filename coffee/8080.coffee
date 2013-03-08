@@ -1,4 +1,4 @@
-{AF:AF, BC:BC, DE:DE, HL:HL, SP:SP, PC:PC} = RegisterAllocation.pairs
+{AF:AF, BC:BC, DE:DE, HL:HL, SP:SP, PC:PC} = Processor8080Definitions.registerPairs
 
 # transform an opcodes-to-runstrings dictionary into a massive switch statement
 opcodeSwitch = (runStringTable) ->

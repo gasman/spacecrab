@@ -18,12 +18,12 @@ else
 
 # export these local variables in a pretty dumb way so that 8080 internals can import them
 # as their own locals
-window.RegisterAllocation = {
+window.Processor8080Definitions = {
 	registers: {
 		A:A, F:F, B:B, C:C, D:D, E:E, H:H, L:L,
 		SPh:SPh, SPl:SPl, PCh:PCh, PCl:PCl
 	},
-	pairs: {
+	registerPairs: {
 		# Define positions of register pairs and their component parts within the register buffer
 		AF: {'p': 0, 'h': A, 'l': F}
 		BC: {'p': 1, 'h': B, 'l': C}

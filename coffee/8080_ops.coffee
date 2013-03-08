@@ -2,9 +2,9 @@
 {
 	A:A, F:F, B:B, C:C, D:D, E:E, H:H, L:L,
 	SPh:SPh, SPl:SPl, PCh:PCh, PCl:PCl
-} = RegisterAllocation.registers
+} = Processor8080Definitions.registers
 
-{AF:AF, BC:BC, DE:DE, HL:HL, SP:SP, PC:PC} = RegisterAllocation.pairs
+{AF:AF, BC:BC, DE:DE, HL:HL, SP:SP, PC:PC} = Processor8080Definitions.registerPairs
 
 condZ = "r[#{F}] & Fz"
 condNZ = "!(r[#{F}] & Fz)"
