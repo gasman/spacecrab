@@ -31,5 +31,8 @@ window.Processor8080Definitions = {
 		HL: {'p': 3, 'h': H, 'l': L}
 		SP: {'p': 4, 'h': SPh, 'l': SPl}
 		PC: {'p': 5, 'h': PCh, 'l': SPl}
+	},
+	flags: {
+		Fz: 0x40, Fs: 0x80, Fp: 0x04, Fcy: 0x01, Fac: 0x10
 	}
 }

@@ -1,4 +1,5 @@
 {AF:AF, BC:BC, DE:DE, HL:HL, SP:SP, PC:PC} = Processor8080Definitions.registerPairs
+{Fz:Fz, Fs:Fs, Fp:Fp, Fcy:Fcy, Fac:Fac} = Processor8080Definitions.flags
 
 # transform an opcodes-to-runstrings dictionary into a massive switch statement
 opcodeSwitch = (runStringTable) ->
@@ -30,9 +31,6 @@ window.Processor8080 = function(memory, io) {
 	var rp = new Uint16Array(registerBuffer);
 	var r = new Uint8Array(registerBuffer);
 
-	/* positions of flag bits within F */
-	var Fz = 0x40; var Fs = 0x80; var Fp = 0x04; var Fcy = 0x01; var Fac = 0x10;
-
 	/* Lookup table for setting the S, Z and P flags according to the results of an operation */
 	var szpTable = new Uint8Array(0x100);
 
@@ -44,9 +42,9 @@ window.Processor8080 = function(memory, io) {
 			j >>=1;
 		}
 
-		parityBit = (parity ? 0 : Fp);
-		signBit = (i & 0x80 ? Fs : 0);
-		zeroBit = (i === 0 ? Fz: 0);
+		parityBit = (parity ? 0 : #{Fp});
+		signBit = (i & 0x80 ? #{Fs} : 0);
+		zeroBit = (i === 0 ? #{Fz}: 0);
 		szpTable[i] = signBit | parityBit | zeroBit;
 	}
 
