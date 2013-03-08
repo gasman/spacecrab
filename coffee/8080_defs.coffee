@@ -16,6 +16,23 @@ else
 	A = 1; F = 0; B = 3; C = 2; D = 5; E = 4; H = 7; L = 6;
 	SPh = 9; SPl = 8; PCh = 11; PCl = 10;
 
+# Lookup table for setting the S, Z and P flags according to the results of an operation
+szpTable = new Uint8Array(0x100)
+
+Fz = 0x40; Fs = 0x80; Fp = 0x04; Fcy = 0x01; Fac = 0x10
+
+for i in [0...0x100]
+	j = i
+	parity = 0
+	for k in [0...8]
+		parity ^= j & 1
+		j >>=1
+
+	parityBit = if parity then 0 else Fp
+	signBit = if i & 0x80 then Fs else 0
+	zeroBit = if i == 0 then Fz else 0
+	szpTable[i] = signBit | parityBit | zeroBit
+
 # export these local variables in a pretty dumb way so that 8080 internals can import them
 # as their own locals
 window.Processor8080Definitions = {
@@ -33,6 +50,7 @@ window.Processor8080Definitions = {
 		PC: {'p': 5, 'h': PCh, 'l': SPl}
 	},
 	flags: {
-		Fz: 0x40, Fs: 0x80, Fp: 0x04, Fcy: 0x01, Fac: 0x10
-	}
+		Fz:Fz, Fs:Fs, Fp:Fp, Fcy:Fcy, Fac:Fac
+	},
+	szpTable: szpTable
 }

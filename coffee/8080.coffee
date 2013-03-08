@@ -31,22 +31,7 @@ window.Processor8080 = function(memory, io) {
 	var rp = new Uint16Array(registerBuffer);
 	var r = new Uint8Array(registerBuffer);
 
-	/* Lookup table for setting the S, Z and P flags according to the results of an operation */
-	var szpTable = new Uint8Array(0x100);
-
-	for (var i = 0; i < 0x100; i++) {
-		var j = i;
-		var parity = 0;
-		for (var k = 0; k < 8; k++) {
-			parity ^= j & 1;
-			j >>=1;
-		}
-
-		parityBit = (parity ? 0 : #{Fp});
-		signBit = (i & 0x80 ? #{Fs} : 0);
-		zeroBit = (i === 0 ? #{Fz}: 0);
-		szpTable[i] = signBit | parityBit | zeroBit;
-	}
+	var szpTable = Processor8080Definitions.szpTable;
 
 	var cycle = 0;
 	var interruptsEnabled = false;
