@@ -41,7 +41,9 @@ window.Processor8080 = function(memory, io) {
 		r: r,
 		rp: rp,
 		interruptsEnabled: false
-	}
+	};
+
+	Processor8080Compiler.compile(memory, 0x0000);
 
 	self.runForCycles = function(cycleCount) {
 		var lo, hi, result, opcode;

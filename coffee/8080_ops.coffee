@@ -69,7 +69,7 @@ DoubleByteInstruction = (runstring) -> {
 tripleByteInstructionDestinations = (memory, addr) -> [(addr + 3) & 0xffff]
 TripleByteInstruction = (runstring) -> {
 	runstring: runstring
-	destinations: doubleByteInstructionDestinations
+	destinations: tripleByteInstructionDestinations
 }
 
 # Instructions that unconditionally transfer control to the address
