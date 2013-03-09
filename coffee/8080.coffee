@@ -2,10 +2,10 @@
 {Fz:Fz, Fs:Fs, Fp:Fp, Fcy:Fcy, Fac:Fac} = Processor8080Definitions.flags
 
 # transform an opcodes-to-runstrings dictionary into a massive switch statement
-opcodeSwitch = (runStringTable) ->
+opcodeSwitch = (opcodeTable) ->
 	clauses = []
 	for opcode in [0...0x100]
-		runString = runStringTable[opcode]
+		runString = opcodeTable[opcode]?.runstring
 		if runString?
 			clauses.push """
 				case #{opcode}:
@@ -54,7 +54,7 @@ window.Processor8080 = function(memory, io) {
 				opcode = memory.read(rp[#{PC.p}]++);
 			}
 
-			#{opcodeSwitch(OPCODE_RUN_STRINGS)}
+			#{opcodeSwitch(OPCODES)}
 		}
 		cycle -= cycleCount;
 	};
