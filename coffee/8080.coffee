@@ -34,9 +34,14 @@ window.Processor8080 = function(memory, io) {
 	var szpTable = Processor8080Definitions.szpTable;
 
 	var cycle = 0;
-	var interruptsEnabled = false;
 	var interruptPending = false;
 	var interruptOpcode;
+
+	var processorState = {
+		r: r,
+		rp: rp,
+		interruptsEnabled: false
+	}
 
 	self.runForCycles = function(cycleCount) {
 		var lo, hi, result, opcode;
@@ -55,7 +60,7 @@ window.Processor8080 = function(memory, io) {
 	};
 
 	self.interrupt = function(opcode) {
-		if (interruptsEnabled) {
+		if (processorState.interruptsEnabled) {
 			interruptPending = true;
 			interruptOpcode = opcode;
 		}

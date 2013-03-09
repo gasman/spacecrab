@@ -5,7 +5,8 @@
 
 	r: a Uint8Array containing all the 8080 registers, at indexes defined by Processor8080Definitions.registers
 	rp: a Uint16Array backed by the same storage as r, containing the register pairs at indexes defined by Processor8080Definitions.registerPairs
-	interruptsEnabled: a boolean indicating whether interrupts are enabled
+	processorState: a struct containing (amongst other things):
+		interruptsEnabled: a boolean indicating whether interrupts are enabled
 	memory: a byte store responding to read(addr) and write(addr, val) methods
 	io: an input/output interface responding to read(port) and write(port, val) methods
 	cycle: a counter incremented for every clock cycle executed
@@ -201,12 +202,12 @@ DCX_RR = (rr) -> """
 """
 
 DI = () -> """
-	interruptsEnabled = false;
+	processorState.interruptsEnabled = false;
 	cycle += 4;
 """
 
 EI = () -> """
-	interruptsEnabled = true;
+	processorState.interruptsEnabled = true;
 	cycle += 4;
 """
 
