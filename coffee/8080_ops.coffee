@@ -17,6 +17,14 @@
 		szpTable: a lookup table indicating the state of the S, Z and P flags for every
 			possible ALU result
 		lo, hi, result: local variables available for storing temporary results in
+
+	destinations: A specification of how control flows onward from this instruction, as far
+	as can be inferred through static analysis. This is in the form of a function which
+	takes two arguments - the memory store object, and the address at which the instruction
+	is located - and returns a list of possible 'next' instructions. A simple instruction
+	with no branching will have a single candidate (as will an unconditional jump instruction);
+	a branch instruction will have two candidates, and an instruction whose destination
+	cannot be determined at compile time (such as RET) will have none.
 ###
 
 # bulk-assign local vars for registers, imported from the Processor8080Definitions module
@@ -38,56 +46,120 @@ condPO = "!(r[#{F}] & #{Fp})"
 condM = "r[#{F}] & #{Fs}"
 condP = "!(r[#{F}] & #{Fs})"
 
-# Constructors for runstrings for each class of operations
+# helper functions to build the data struct for classes of instructions that share common
+# traits, in terms of the sort of branching they do
 
-ACI_NN = () -> {runstring: """
+# Instructions that occupy a single byte and do not perform any branching.
+# Conditional RET comes into this category, because the only case we can follow via static analysis
+# is the non-branching case
+singleByteInstructionDestinations = (memory, addr) -> [(addr + 1) & 0xffff]
+SingleByteInstruction = (runstring) -> {
+	runstring: runstring
+	destinations: singleByteInstructionDestinations
+}
+
+# Instructions that occupy two bytes and do not perform any branching
+doubleByteInstructionDestinations = (memory, addr) -> [(addr + 2) & 0xffff]
+DoubleByteInstruction = (runstring) -> {
+	runstring: runstring
+	destinations: doubleByteInstructionDestinations
+}
+
+# Instructions that occupy three bytes and do not perform any branching
+tripleByteInstructionDestinations = (memory, addr) -> [(addr + 3) & 0xffff]
+TripleByteInstruction = (runstring) -> {
+	runstring: runstring
+	destinations: doubleByteInstructionDestinations
+}
+
+# Instructions that unconditionally transfer control to the address
+# given by bytes 2-3 of the instruction
+unconditionalJumpDestinations = (memory, addr) ->
+	lo = memory.read((addr + 1) & 0xffff)
+	hi = memory.read((addr + 2) & 0xffff)
+	[lo | (hi << 8)]
+UnconditionalJump = (runstring) -> {
+	runstring: runstring
+	destinations: unconditionalJumpDestinations
+}
+
+# Instructions that unconditionally transfer control to an address that cannot
+# be determined by static analysis
+untraceableInstructionDestinations = (memory, addr) -> []
+UntraceableInstruction = (runstring) -> {
+	runstring: runstring
+	destinations: untraceableInstructionDestinations
+}
+
+# Instructions that unconditionally transfer control to an address hard-wired to that opcode
+RstInstruction = (targetAddr, runstring) -> {
+	runstring: runstring
+	destinations: (memory, addr) -> [targetAddr]
+}
+
+# Instructions that transfer control to the address given by bytes 2-3 of the instruction
+# if some condition is met, and continue to the next instruction if not
+conditionalJumpDestinations = (memory, addr) ->
+	lo = memory.read((addr + 1) & 0xffff)
+	hi = memory.read((addr + 2) & 0xffff)
+	[
+		(addr + 3) & 0xffff,
+		lo | (hi << 8)
+	]
+ConditionalJump = (runstring) -> {
+	runstring: runstring
+	destinations: conditionalJumpDestinations
+}
+
+# Constructors for runstrings for each distinctly-named instruction
+ACI_NN = () -> DoubleByteInstruction("""
 	result = (r[#{A}] + memory.read(rp[#{PC.p}]++) + ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-ADC_M = () -> {runstring: """
+ADC_M = () -> SingleByteInstruction("""
 	result = (r[#{A}] + memory.read(rp[#{HL.p}]) + ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-ADC_R = (r) -> {runstring: """
+ADC_R = (r) -> SingleByteInstruction("""
 	result = (r[#{A}] + r[#{r}] + ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-ADD_M = () -> {runstring: """
+ADD_M = () -> SingleByteInstruction("""
 	result = (r[#{A}] + memory.read(rp[#{HL.p}])) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-ADD_R = (r) -> {runstring: """
+ADD_R = (r) -> SingleByteInstruction("""
 	result = (r[#{A}] + r[#{r}]) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-ADI_NN = () -> {runstring: """
+ADI_NN = () -> DoubleByteInstruction("""
 	result = (r[#{A}] + memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result < r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) < (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-ANA_M = () -> {runstring: """
+ANA_M = () -> SingleByteInstruction("""
 	r[#{A}] &= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-ANA_R = (r) -> {runstring:
+ANA_R = (r) -> SingleByteInstruction(
 	if r == A
 		"""
 			r[#{F}] = szpTable[r[#{A}]];
@@ -98,15 +170,15 @@ ANA_R = (r) -> {runstring:
 			r[#{A}] &= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
 			cycle += 4;
 		"""
-}
+)
 
-ANI_NN = () -> {runstring: """
+ANI_NN = () -> DoubleByteInstruction("""
 	r[#{A}] &= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-CALL_C = (cond) -> {runstring: """
+CALL_C = (cond) -> ConditionalJump("""
 	if (#{cond}) {
 		lo = memory.read(rp[#{PC.p}]++);
 		hi = memory.read(rp[#{PC.p}]++);
@@ -118,34 +190,34 @@ CALL_C = (cond) -> {runstring: """
 		rp[#{PC.p}] += 2;
 		cycle += 11;
 	}
-"""}
+""")
 
-CALL_NNNN = (cond) -> {runstring: """
+CALL_NNNN = () -> UnconditionalJump("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]++);
 	memory.write(--rp[#{SP.p}], r[#{PCh}]);
 	memory.write(--rp[#{SP.p}], r[#{PCl}]);
 	r[#{PCh}] = hi; r[#{PCl}] = lo;
 	cycle += 17;
-"""}
+""")
 
-CMA = () -> {runstring: """
+CMA = () -> SingleByteInstruction("""
 	r[#{A}] = ~r[#{A}];
 	cycle += 4;
-"""}
+""")
 
-CMC = () -> {runstring: """
+CMC = () -> SingleByteInstruction("""
 	r[#{F}] ^= (r[#{F}] & #{Fcy});
 	cycle += 4;
-"""}
+""")
 
-CMP_M = () -> {runstring: """
+CMP_M = () -> SingleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	cycle += 7;
-"""}
+""")
 
-CMP_R = (r) -> {runstring:
+CMP_R = (r) -> SingleByteInstruction(
 	if r == A
 		"""
 			r[#{F}] = szpTable[0];
@@ -157,15 +229,15 @@ CMP_R = (r) -> {runstring:
 			r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 			cycle += 4;
 		"""
-}
+)
 
-CPI_NN = () -> {runstring: """
+CPI_NN = () -> DoubleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	cycle += 7;
-"""}
+""")
 
-DAA = () -> {runstring: """
+DAA = () -> SingleByteInstruction("""
 	var newF = 0;
 	if (((r[#{A}] & 0x0f) > 0x09) || (r[#{F}] & #{Fac})) {
 		/* add 6 to A; set AC if this causes overflow from bit 3 (i.e. bottom four bits are >= A) */
@@ -178,71 +250,71 @@ DAA = () -> {runstring: """
 	}
 	r[#{F}] = newF | szpTable[r[#{A}]];
 	cycle += 4;
-"""}
+""")
 
-DAD_RR = (rr) -> {runstring: """
+DAD_RR = (rr) -> SingleByteInstruction("""
 	result = rp[#{HL.p}] + rp[#{rr.p}];
 	r[#{F}] = (r[#{F}] & ~#{Fcy}) | (result & 0x10000 ? #{Fcy} : 0);
 	rp[#{HL.p}] = result;
 	cycle += 10;
-"""}
+""")
 
-DCR_M = () -> {runstring: """
+DCR_M = () -> SingleByteInstruction("""
 	result = (memory.read(rp[#{HL.p}]) - 1) & 0xff;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 	r[#{F}] = (r[#{F}] & #{Fcy}) | szpTable[result] | ((result & 0x0f) == 0x0f ? #{Fac} : 0);
 	memory.write(rp[#{HL.p}], result);
 	cycle += 10;
-"""}
+""")
 
-DCR_R = (r) -> {runstring: """
+DCR_R = (r) -> SingleByteInstruction("""
 	r[#{r}]--;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become f */
 	r[#{F}] = (r[#{F}] & #{Fcy}) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) == 0x0f ? #{Fac} : 0);
 	cycle += 5;
-"""}
+""")
 
-DCX_RR = (rr) -> {runstring: """
+DCX_RR = (rr) -> SingleByteInstruction("""
 	rp[#{rr.p}]--;
 	cycle += 5;
-"""}
+""")
 
-DI = () -> {runstring: """
+DI = () -> SingleByteInstruction("""
 	processorState.interruptsEnabled = false;
 	cycle += 4;
-"""}
+""")
 
-EI = () -> {runstring: """
+EI = () -> SingleByteInstruction("""
 	processorState.interruptsEnabled = true;
 	cycle += 4;
-"""}
+""")
 
-IN_NN = () -> {runstring: """
+IN_NN = () -> DoubleByteInstruction("""
 	r[#{A}] = io.read(memory.read(rp[#{PC.p}]++));
 	cycle += 10;
-"""}
+""")
 
-INX_RR = (rr) -> {runstring: """
+INX_RR = (rr) -> SingleByteInstruction("""
 	rp[#{rr.p}]++;
 	cycle += 5;
-"""}
+""")
 
-INR_M = () -> {runstring: """
+INR_M = () -> SingleByteInstruction("""
 	result = (memory.read(rp[#{HL.p}]) + 1) & 0xff;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
 	r[#{F}] = (r[#{F}] & #{Fcy}) | szpTable[result] | ((result & 0x0f) ? 0 : #{Fac});
 	memory.write(rp[#{HL.p}], result);
 	cycle += 10;
-"""}
+""")
 
-INR_R = (r) -> {runstring: """
+INR_R = (r) -> SingleByteInstruction("""
 	r[#{r}]++;
 	/* preserve carry; take S, Z, P from lookup table; set AC iff lower nibble has become 0 */
 	r[#{F}] = (r[#{F}] & #{Fcy}) | szpTable[r[#{r}]] | ((r[#{r}] & 0x0f) ? 0 : #{Fac});
 	cycle += 5;
-"""}
+""")
 
-JMP_C = (cond) -> {runstring: """
+JMP_C = (cond) -> ConditionalJump("""
 	if (#{cond}) {
 		lo = memory.read(rp[#{PC.p}]++);
 		hi = memory.read(rp[#{PC.p}]);
@@ -251,53 +323,53 @@ JMP_C = (cond) -> {runstring: """
 		rp[#{PC.p}] += 2;
 	}
 	cycle += 10;
-"""}
+""")
 
-JMP_NNNN = () -> {runstring: """
+JMP_NNNN = () -> UnconditionalJump("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]);
 	r[#{PCh}] = hi; r[#{PCl}] = lo;
 	cycle += 10;
-"""}
+""")
 
-LDA_NNNN = () -> {runstring: """
+LDA_NNNN = () -> TripleByteInstruction("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]++);
 	r[#{A}] = memory.read((hi << 8) | lo);
 	cycle += 13;
-"""}
+""")
 
-LDAX_RR = (rr) -> {runstring: """
+LDAX_RR = (rr) -> SingleByteInstruction("""
 	r[#{A}] = memory.read(rp[#{rr.p}]);
 	cycle += 7;
-"""}
+""")
 
-LHLD_NNNN = () -> {runstring: """
+LHLD_NNNN = () -> TripleByteInstruction("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]++);
 	result = (hi << 8) | lo;
 	r[#{L}] = memory.read(result);
 	r[#{H}] = memory.read((result + 1) & 0xffff);
 	cycle += 16;
-"""}
+""")
 
-LXI_RR_NNNN = (rr) -> {runstring: """
+LXI_RR_NNNN = (rr) -> TripleByteInstruction("""
 	r[#{rr.l}] = memory.read(rp[#{PC.p}]++);
 	r[#{rr.h}] = memory.read(rp[#{PC.p}]++);
 	cycle += 10;
-"""}
+""")
 
-MOV_M_R = (r) -> {runstring: """
+MOV_M_R = (r) -> SingleByteInstruction("""
 	memory.write(rp[#{HL.p}], r[#{r}]);
 	cycle += 7;
-"""}
+""")
 
-MOV_R_M = (r) -> {runstring: """
+MOV_R_M = (r) -> SingleByteInstruction("""
 	r[#{r}] = memory.read(rp[#{HL.p}]);
 	cycle += 7;
-"""}
+""")
 
-MOV_R_R = (r1, r2) -> {runstring:
+MOV_R_R = (r1, r2) -> SingleByteInstruction(
 	if r1 == r2
 		"""
 			cycle += 5;
@@ -307,28 +379,28 @@ MOV_R_R = (r1, r2) -> {runstring:
 			r[#{r1}] = r[#{r2}];
 			cycle += 5;
 		"""
-}
+)
 
-MVI_M_NN = () -> {runstring: """
+MVI_M_NN = () -> DoubleByteInstruction("""
 	memory.write(rp[#{HL.p}], memory.read(rp[#{PC.p}]++));
 	cycle += 10;
-"""}
+""")
 
-MVI_R_NN = (r) -> {runstring: """
+MVI_R_NN = (r) -> DoubleByteInstruction("""
 	r[#{r}] = memory.read(rp[#{PC.p}]++);
 	cycle += 7;
-"""}
+""")
 
-NOP = () -> {runstring: """
+NOP = () -> SingleByteInstruction("""
 	cycle += 4;
-"""}
+""")
 
-ORA_M = () -> {runstring: """
+ORA_M = () -> SingleByteInstruction("""
 	r[#{A}] |= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-ORA_R = (r) -> {runstring:
+ORA_R = (r) -> SingleByteInstruction(
 	if r == A
 		"""
 			r[#{F}] = szpTable[r[#{A}]];
@@ -339,59 +411,59 @@ ORA_R = (r) -> {runstring:
 			r[#{A}] |= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
 			cycle += 4;
 		"""
-}
+)
 
-ORI_NN = () -> {runstring: """
+ORI_NN = () -> DoubleByteInstruction("""
 	r[#{A}] |= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-OUT_NN = () -> {runstring: """
+OUT_NN = () -> DoubleByteInstruction("""
 	io.write(memory.read(rp[#{PC.p}]++), r[#{A}]);
 	cycle += 10;
-"""}
+""")
 
-PCHL = () -> {runstring: """
+PCHL = () -> UntraceableInstruction("""
 	rp[#{PC.p}] = rp[#{HL.p}];
 	cycle += 5;
-"""}
+""")
 
-POP_RR = (rr) -> {runstring: """
+POP_RR = (rr) -> SingleByteInstruction("""
 	r[#{rr.l}] = memory.read(rp[#{SP.p}]++);
 	r[#{rr.h}] = memory.read(rp[#{SP.p}]++);
 	cycle += 10;
-"""}
+""")
 
-PUSH_RR = (rr) -> {runstring: """
+PUSH_RR = (rr) -> SingleByteInstruction("""
 	memory.write(--rp[#{SP.p}], r[#{rr.h}]);
 	memory.write(--rp[#{SP.p}], r[#{rr.l}]);
 	cycle += 11;
-"""}
+""")
 
-RAL = () -> {runstring: """
+RAL = () -> SingleByteInstruction("""
 	result = (r[#{A}] << 1) | (r[#{F}] & #{Fcy} ? 1 : 0);
 	/* copy top bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | #{Fcy}) : (r[#{F}] & ~#{Fcy});
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-RAR = () -> {runstring: """
+RAR = () -> SingleByteInstruction("""
 	result = (r[#{A}] >> 1) | (r[#{F}] & #{Fcy} ? 0x80 : 0);
 	/* copy bottom bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | #{Fcy}) : (r[#{F}] & ~#{Fcy});
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-RET = () -> {runstring: """
+RET = () -> UntraceableInstruction("""
 	r[#{PCl}] = memory.read(rp[#{SP.p}]++);
 	r[#{PCh}] = memory.read(rp[#{SP.p}]++);
 	cycle += 10;
-"""}
+""")
 
-RET_C = (cond) -> {runstring: """
+RET_C = (cond) -> SingleByteInstruction("""
 	if (#{cond}) {
 		r[#{PCl}] = memory.read(rp[#{SP.p}]++);
 		r[#{PCh}] = memory.read(rp[#{SP.p}]++);
@@ -399,115 +471,115 @@ RET_C = (cond) -> {runstring: """
 	} else {
 		cycle += 5;
 	}
-"""}
+""")
 
-RLC = () -> {runstring: """
+RLC = () -> SingleByteInstruction("""
 	/* copy top bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x80) ? (r[#{F}] | #{Fcy}) : (r[#{F}] & ~#{Fcy});
 	r[#{A}] = (r[#{A}] << 1) | ((r[#{A}] & 0x80) >> 7);
 	cycle += 4;
-"""}
+""")
 
-RRC = () -> {runstring: """
+RRC = () -> SingleByteInstruction("""
 	/* copy bottom bit of A to carry flag */
 	r[#{F}] = (r[#{A}] & 0x01) ? (r[#{F}] | #{Fcy}) : (r[#{F}] & ~#{Fcy});
 	r[#{A}] = (r[#{A}] >> 1) | ((r[#{A}] & 0x01) << 7);
 	cycle += 4;
-"""}
+""")
 
-RST = (addr) -> {runstring: """
+RST = (addr) -> RstInstruction(addr, """
 	memory.write(--rp[#{SP.p}], r[#{PCh}]);
 	memory.write(--rp[#{SP.p}], r[#{PCl}]);
 	rp[#{PC.p}] = #{addr};
 	cycle += 11;
-"""}
+""")
 
-SBB_M = () -> {runstring: """
+SBB_M = () -> SingleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{HL.p}]) - ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-SBB_R = (r) -> {runstring: """
+SBB_R = (r) -> SingleByteInstruction("""
 	result = (r[#{A}] - r[#{r}] - ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-SBI_NN = () -> {runstring: """
+SBI_NN = () -> DoubleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{PC.p}]++) - ((r[#{F}] & #{Fcy}) ? 1 : 0)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-SHLD_NNNN = () -> {runstring: """
+SHLD_NNNN = () -> TripleByteInstruction("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]++);
 	result = (hi << 8) | lo;
 	memory.write(result, r[#{L}]);
 	memory.write((result + 1) & 0xffff, r[#{H}]);
 	cycle += 16;
-"""}
+""")
 
-SPHL = () -> {runstring: """
+SPHL = () -> SingleByteInstruction("""
 	rp[#{SP.p}] = rp[#{HL.p}];
 	cycle += 5;
-"""}
+""")
 
-STA_NNNN = () -> {runstring: """
+STA_NNNN = () -> TripleByteInstruction("""
 	lo = memory.read(rp[#{PC.p}]++);
 	hi = memory.read(rp[#{PC.p}]++);
 	memory.write((hi << 8) | lo, r[#{A}]);
 	cycle += 13;
-"""}
+""")
 
-STAX_RR = (rr) -> {runstring: """
+STAX_RR = (rr) -> SingleByteInstruction("""
 	memory.write(rp[#{rr.p}], r[#{A}]);
 	cycle += 7;
-"""}
+""")
 
-STC = () -> {runstring: """
+STC = () -> SingleByteInstruction("""
 	r[#{F}] |= #{Fcy};
 	cycle += 4;
-"""}
+""")
 
-SUB_M = () -> {runstring: """
+SUB_M = () -> SingleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{HL.p}])) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-SUB_R = (r) -> {runstring: """
+SUB_R = (r) -> SingleByteInstruction("""
 	result = (r[#{A}] - r[#{r}]) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 4;
-"""}
+""")
 
-SUI_NN = () -> {runstring: """
+SUI_NN = () -> DoubleByteInstruction("""
 	result = (r[#{A}] - memory.read(rp[#{PC.p}]++)) & 0xff;
 	r[#{F}] = szpTable[result] | (result > r[#{A}] ? #{Fcy} : 0) | ((result & 0x0f) > (r[#{A}] & 0x0f) ? #{Fac} : 0);
 	r[#{A}] = result;
 	cycle += 7;
-"""}
+""")
 
-XCHG = () -> {runstring: """
+XCHG = () -> SingleByteInstruction("""
 	result = rp[#{HL.p}];
 	rp[#{HL.p}] = rp[#{DE.p}];
 	rp[#{DE.p}] = result;
 	cycle += 5;
-"""}
+""")
 
-XRA_M = () -> {runstring: """
+XRA_M = () -> SingleByteInstruction("""
 	r[#{A}] ^= memory.read(rp[#{HL.p}]); r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-XRA_R = (r) -> {runstring:
+XRA_R = (r) -> SingleByteInstruction(
 	if r == A
 		"""
 			r[#{A}] = 0; r[#{F}] = szpTable[r[#{A}]];
@@ -518,22 +590,22 @@ XRA_R = (r) -> {runstring:
 			r[#{A}] ^= r[#{r}]; r[#{F}] = szpTable[r[#{A}]];
 			cycle += 4;
 		"""
-}
+)
 
-XRI_NN = () -> {runstring: """
+XRI_NN = () -> DoubleByteInstruction("""
 	r[#{A}] ^= memory.read(rp[#{PC.p}]++);
 	r[#{F}] = szpTable[r[#{A}]];
 	cycle += 7;
-"""}
+""")
 
-XTHL = () -> {runstring: """
+XTHL = () -> SingleByteInstruction("""
 	lo = memory.read(rp[#{SP.p}]);
 	hi = memory.read(rp[#{SP.p}] + 1);
 	memory.write(rp[#{SP.p}], r[#{L}]);
 	memory.write(rp[#{SP.p}] + 1, r[#{H}]);
 	r[#{L}] = lo; r[#{H}] = hi;
 	cycle += 18;
-"""}
+""")
 
 window.OPCODES = {
 	0x00: NOP()              # NOP
