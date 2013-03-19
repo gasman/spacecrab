@@ -6,8 +6,33 @@
 		<script src="js/8080_ops.js"></script>
 		<script src="js/8080.js"></script>
 		<script src="js/spacecrab.js"></script>
+		<style>
+			body {
+				font-family: Helvetica, Arial, sans-serif;
+				background-color: #dde;
+				color: #224;
+			}
+			h2 {
+				font-size: 1em;
+				color: #558;
+			}
+			canvas {
+				display: block;
+				margin: auto;
+			}
+			footer {
+				border-top: 1px solid #558;
+				font-size: 0.8em;
+			}
+		</style>
 	</head>
 	<body onload="init()">
+		<h1>spacecrab</h1>
+		<h2>a Space Invaders emulator in CoffeeScript</h2>
 		<canvas id="screen" style="background-color: black;" width="224" height="256"></canvas>
+		<p>Keys: C = insert coin, 1 = 1 player start, 2 = 2 player start, Z = left, X = right, . = fire</p>
+		<footer>
+			<p>By <a href="http://matt.west.co.tt/">Matt Westcott</a>. <a href="https://github.com/gasman/spacecrab">Source code</a> | <a href="http://twitter.com/gasmanic">Twitter</a></p>
+		</footer>
 	</body>
 </html>
