@@ -65,10 +65,10 @@
         case 190:
           port1 |= 0x10;
           return port2in |= 0x10;
-        case 90:
+        case 83:
           port1 |= 0x20;
           return port2in |= 0x20;
-        case 88:
+        case 68:
           port1 |= 0x40;
           return port2in |= 0x40;
       }
@@ -84,10 +84,10 @@
         case 190:
           port1 &= ~0x10;
           return port2in &= ~0x10;
-        case 90:
+        case 83:
           port1 &= ~0x20;
           return port2in &= ~0x20;
-        case 88:
+        case 68:
           port1 &= ~0x40;
           return port2in &= ~0x40;
       }
