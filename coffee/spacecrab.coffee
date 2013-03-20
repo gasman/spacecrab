@@ -60,10 +60,10 @@ IO = () ->
 			when 190  # '.' = fire
 				port1 |= 0x10
 				port2in |= 0x10
-			when 90  # 'z' = left
+			when 83  # 's' = left
 				port1 |= 0x20
 				port2in |= 0x20
-			when 88  # 'x' = right
+			when 68  # 'd' = right
 				port1 |= 0x40
 				port2in |= 0x40
 	)
@@ -79,10 +79,10 @@ IO = () ->
 			when 190  # '.' = fire
 				port1 &= ~0x10
 				port2in &= ~0x10
-			when 90  # 'z' = left
+			when 83  # 's' = left
 				port1 &= ~0x20
 				port2in &= ~0x20
-			when 88  # 'x' = right
+			when 68  # 'd' = right
 				port1 &= ~0x40
 				port2in &= ~0x40
 	)
